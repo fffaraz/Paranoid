@@ -1,10 +1,21 @@
 # PARANOID v2.0
+A remake of Paranoid by The Bit Bucket Brothers, built using [raylib](https://github.com/raysan5/raylib) in C++.
 
 ## Objective
 
-The goal of this project is to make a 100% identical cross-platform open source clone of Paranoid using [raylib](https://github.com/raysan5/raylib) in C++, with the help of AI.
+The goal of this project is to create a faithful, cross-platform, open-source clone of Paranoid with the help of AI.
 
 ![screenshot](/screenshot.png)
+
+## Build & Run
+
+Requires CMake 3.25+, a C++17 compiler, and Git. raylib is fetched automatically.
+
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+./build/paranoid
+```
 
 ## What is Paranoid?
 
