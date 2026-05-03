@@ -1,0 +1,4 @@
+---
+BasedOnStyle: WebKit
+
+# find . -not -path "./build/*" \( -name "*.cpp" -o -name "*.h" \) | xargs clang-format -i
