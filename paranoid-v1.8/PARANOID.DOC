@@ -1,0 +1,255 @@
+                         ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+                         ³ ÉÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ» ³
+                         ³ º ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿ º ³
+                         ³ º ³  P A R A N O I D  ³ º ³
+                         ³ º ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ º ³
+                         ³ ÈÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¼ ³
+                         ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+
+     PARANOID v1.8 - 22nd June, 1993
+
+
+     I  Introduction
+
+     Paranoid is a high-grade game in the style of Arkanoid.  To play
+     Paranoid, you will need the following kit:
+
+              Colour EGA / VGA display;
+              MS-DOS v3.00 or later.
+
+     The release disk should contain the following files:
+
+              Paranoid.COM    - the game itself;
+              BitMaps.PAR     - pictures file;
+              Levels.PAR      - levels file;
+              Fonts.PAR       - fonts file;
+              Paranoid.DOC    - the file you are reading.
+
+     If any of the top four files is missing, Paranoid will not run.
+     There is also a high score table file, HiScores.PAR.  If this is
+     missing, Paranoid will create a new one.  To reset the high scores,
+     delete this file.
+
+
+
+
+
+     II  Features
+
+     Despite having a less than original theme, Paranoid has many
+     features which make it stand out from the crowd.
+
+            ş Tiny program size - under 61k including all data files;
+
+            ş Massive thirty levels of ball-bouncing fun;
+
+            ş On-line help;
+
+            ş Tuneful sound effects;
+
+            ş Awesome sixteen-colour graphics;
+
+            ş Rave reviews
+                   `Fantastic' - B. North;
+                   `Marvellous' - T. North;
+                   `Excellent' - easily bribed passer-by.
+
+
+
+
+
+     III  Installing Paranoid
+
+     To install Paranoid you will need to copy the files listed above
+     into a new directory on your hard drive.  If you are running from a
+     floppy system, then ensure that the disk is not write-protected as
+     Paranoid needs to be able to modify the high score table.
+
+
+
+
+
+     IV  Running Paranoid
+
+     To use paranoid, move to the directory which contains the files and
+     type
+
+              PARANOID
+
+     followed by Return.  The game will then load and run.  Should any of
+     the files that Paranoid needs be missing, a list of missing files
+     will be displayed so you can re-load them from the release disk.
+
+     Paranoid can also be used in a special quiet mode which allows the
+     game to be run without the sound effects.  To achieve this, invoke
+     Paranoid with the command line
+
+              PARANOID /Q
+
+     and the sound will be disabled.
+
+     Before running, Paranoid checks that you have an appropriate video
+     card installed.  However, there may be problems with some cards, in
+     that Paranoid will not run even though an EGA card is present.  If
+     you are sure that your video system is suitable, but Paranoid will
+     not run, then the auto video-detect may be disabled with the command
+     line
+
+              PARANOID /V
+
+     and Paranoid will run without checking that the video system is
+     suitable.
+
+     Both command line switches may be used at once if you wish to skip
+     the video auto-detect and run in quiet mode.  To achieve this, type
+
+              PARANOID /Q /V
+
+     as the command line.
+
+     From v1.8, there is the facility to play Paranoid using keys of
+     the user's choice to move left and right and fire (or release the
+     stuck balls).  Unfortunately, it is a little complicated to use,
+     requiring another command-line switch; this one of unrivalled
+     complexity.
+
+     By default, Paranoid starts off with the Shift keys to move left
+     and right, and Space for the action key (fire or release balls).
+     These can be changed by specifying three scan codes in the command
+     line, using the /K (for Keys) command-line switch.  It is used as
+     follows.
+
+              PARANOID /K llrraa
+
+     where  ll  is the scan code for the chosen key to move left,  rr
+     for move right and  aa  for the action key.  Scan codes for all
+     keys should be listed in your computer manual.  For example, to
+     start up Paranoid with `N' for left, `M' for right and Space for
+     action, allowing one-handed play, the command line would be
+
+              PARANOID /K 313239
+
+     since `N' has scan code 31, `M' has scan code 32 and Space has scan
+     code 39.  Some keys (eg. arrow keys) have a two-byte scan code
+     beginning with  E0 .  To specify such keys, use the four-character
+     scan code; for example
+
+              PARANOID /K E04BE04D39
+
+     will start Paranoid with the left/right arrow keys to move and
+     Space as the action key.
+
+     Note that Paranoid does not check that you have not assigned two
+     keys to the same thing, nor that you have not assigned the cheat or
+     pause buttons.  So be warned; strange things might happen if you
+     try to do this.
+
+     Of course, this /K switch can be combined with any of the others
+     to your heart's content.
+
+
+
+
+
+
+
+     V  Playing Paranoid
+
+     The idea of the game Paranoid is to demolish the bricks at the top
+     of the screen by hitting a ball at them with a bat.  To allow great
+     precision in deciding which bricks to destroy, hitting the ball with
+     the left hand edge of your bat will make the ball bounce to the left;
+     if, on the other hand, you hit the ball with the right hand edge of
+     your bat, the ball bounces to the right.  The nearer the edge of your
+     bat the ball strikes, the steeper the angle at which the ball bounces
+     off.  This will become clear after a few minutes' play.
+
+     Once you have destoyed all the bricks, you will go on to another
+     screenful of ball-bouncing fun.  To make your task easier, you will
+     be awarded an extra ball every four thousand points.
+
+     Some of the bricks are tougher than others and require two or more
+     hits to destroy.  On each hit, they change their appearance until
+     finally they disappear.  Also, some bricks contain icons which are
+     released when the brick is hit.  These then float gently down the
+     screen until they reach the bottom, where they can be caught by your
+     bat.  To catch an icon, simply run into it with the bat.  Most icons
+     are useful, but others are best avoided.
+
+     More instructions are available from the game - press F1 to peruse
+     them.
+
+     There is also now an official pause facility, ie. one not relying
+     on the PC's own Pause button.  To use this feature, during a game
+     press the `P' button (for Pause).  The game will then pause until
+     the `P' key is re-pressed.
+
+
+
+
+
+     VI  Registration details
+
+     Paranoid is shareware.  If you are unfamiliar with the concept of
+     shareware, it allows you to try before you buy.  You may use Paranoid
+     for one month free of charge; this trial period is to let you decide
+     whether you like the game.  If you enjoy Paranoid, please send œ10 in
+     the form of a cheque or postal order, made payable to Ben North, to
+
+              The Bit Bucket Brothers,
+              "Amaroo", Weir Lane,
+              Hanwood, Shrewsbury,
+              Shropshire.  SY5 8JY.
+
+     Please note that we cannot accept cash, postage stamps or credit
+     cards.
+
+     When you register, not only will your conscience let you lie easy
+     in your bed at night, but you will also receive
+
+            ş a personalised thank-you letter;
+
+            ş a disk (please state 5¬" or 3«" when registering) containing
+                 ş a registered copy of the game (this includes a cheat
+                   facility and a save game facility);
+                 ş thirty more levels of ball-bouncing fun;
+                 ş a level designer to create your own screens;
+
+            ş cut-price updates when available.
+
+     Since Paranoid is shareware, please feel free to distribute the
+     evaluation copy amongst your friends, upload it to BBs, etc, with the
+     understanding that all the files are distributed at once, unmodified,
+     and also that anyone who makes regular use of Paranoid is required to
+     register as described above.
+
+
+
+
+
+     VII  Release history
+
+     ş 1.8  (22nd June, 1993)
+     User-definable keys, official `pause game' facility.
+
+     ş 1.7  (1st April, 1993)
+     Pseudo save-game facility (registered version only).
+
+     ş 1.6  (20th March, 1993)
+     Minor bug fixes, `Paranoid' written across bottom of play area,
+     cheat facility (registered version only).
+
+     ş 1.1 - 1.5
+     Internal versions -- not released.
+
+     ş 1.0  (17th Sept, 1992)
+     Original shareware release.
+
+                                                 - Ben North and Tom North
+                                                      22nd June, 1993
+
+                         ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
+
+       All trademarks acknowledged.
+       Copyright (c)  Ben North and Tom North 1993.  All rights reserved.
