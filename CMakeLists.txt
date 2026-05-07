@@ -18,3 +18,16 @@ add_compile_options(-Werror)
 
 add_executable(paranoid main.cpp bitmaps.cpp fonts.cpp levels.cpp sound.cpp)
 target_link_libraries(paranoid PRIVATE raylib m)
+
+if(EMSCRIPTEN)
+    set(CMAKE_EXECUTABLE_SUFFIX ".html")
+    # ASYNCIFY lets the existing while(!WindowShouldClose()) loop yield to the browser.
+    # Data files are bundled into the virtual FS via --preload-file.
+    target_link_options(paranoid PRIVATE
+        -sUSE_GLFW=3
+        -sASYNCIFY
+        -sALLOW_MEMORY_GROWTH=1
+        -sFORCE_FILESYSTEM=1
+        --preload-file ${CMAKE_SOURCE_DIR}/paranoid-v1.8@/paranoid-v1.8
+    )
+endif()
