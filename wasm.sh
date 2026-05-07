@@ -22,8 +22,10 @@ fi
 BUILD_DIR="build-wasm"
 mkdir -p "$BUILD_DIR"
 
+CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-Release}"
+
 emcmake cmake -S . -B "$BUILD_DIR" \
-    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
     -DPLATFORM=Web
 
 cmake --build "$BUILD_DIR" -j"$(nproc)"

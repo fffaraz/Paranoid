@@ -26,8 +26,22 @@ if(EMSCRIPTEN)
     target_link_options(paranoid PRIVATE
         -sUSE_GLFW=3
         -sASYNCIFY
+        -sSTACK_SIZE=1048576
+        -sASYNCIFY_STACK_SIZE=65536
+        -sINITIAL_MEMORY=67108864
         -sALLOW_MEMORY_GROWTH=1
         -sFORCE_FILESYSTEM=1
+        -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap']
         --preload-file ${CMAKE_SOURCE_DIR}/paranoid-v1.8@/paranoid-v1.8
     )
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        target_compile_options(paranoid PRIVATE -g -O0)
+        target_link_options(paranoid PRIVATE
+            -g
+            -O0
+            -sASSERTIONS=2
+            -sSAFE_HEAP=1
+            -sSTACK_OVERFLOW_CHECK=2
+        )
+    endif()
 endif()
