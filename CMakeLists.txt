@@ -33,6 +33,7 @@ if(EMSCRIPTEN)
         -sFORCE_FILESYSTEM=1
         -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap']
         --preload-file ${CMAKE_SOURCE_DIR}/paranoid-v1.8@/paranoid-v1.8
+        --pre-js ${CMAKE_SOURCE_DIR}/web/pre.js
     )
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         target_compile_options(paranoid PRIVATE -g -O0)
