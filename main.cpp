@@ -190,13 +190,15 @@ enum GameState { STATE_TITLE,
     STATE_INFO,
     STATE_PLAY,
     STATE_PAUSED,
-    STATE_GAMEOVER };
+    STATE_GAMEOVER,
+    STATE_WIN };
 
 GameState state = STATE_TITLE;
 int current_level = 0;
 int score = 0;
 int lives = 3;
 int bricks_remaining = 0;
+int next_extra_life_score = 4000;
 
 constexpr int PLAY_ROWS = 19;
 constexpr int PLAY_COLS = 14;
@@ -213,6 +215,7 @@ struct Ball {
     float x, y, dx, dy;
     float sticky_offset;
     bool active;
+    bool through_bricks;
 };
 
 /* Ball speed parameters (matching ASM entity movement at 0xc16d)
@@ -256,10 +259,6 @@ bool barrier_active = false;
 bool through_active = false;
 bool laser_active = false;
 float laser_cooldown = 0.0f;
-float sticky_timer = 0.0f;
-float laser_timer = 0.0f;
-float through_timer = 0.0f;
-constexpr float POWERUP_DURATION = 20.0f;
 struct Laser {
     float x, y;
     bool active;
@@ -295,13 +294,23 @@ static bool IsLetterBrick(uint8_t type)
     return type >= 0x0A && type <= 0x0E;
 }
 
+static void AddScore(int points)
+{
+    score += points;
+    // The original awards another ball at each 4000-point threshold.
+    while (score >= next_extra_life_score) {
+        lives++;
+        next_extra_life_score += 4000;
+    }
+}
+
 static void HitBrick(int r, int c, int offsetX, int offsetY)
 {
     uint8_t type = grid[r][c];
     if (type == 0x1C)
         return;
 
-    score += (type < sizeof(BRICK_SCORE)) ? BRICK_SCORE[type] : 10;
+    AddScore((type < sizeof(BRICK_SCORE)) ? BRICK_SCORE[type] : 10);
 
     if (IsLetterBrick(type)) {
         uint8_t letter_bit = 1 << (type - 0x0A);
@@ -312,10 +321,7 @@ static void HitBrick(int r, int c, int offsetX, int offsetY)
                 letters_next <<= 1;
             letters_collected |= letter_bit;
             if (letters_collected == 0x1F) {
-                score += letters_in_order ? 1000 : 500;
-                letters_collected = 0;
-                letters_next = 1;
-                letters_in_order = true;
+                AddScore(letters_in_order ? 500 : 200);
             }
         }
     }
@@ -358,12 +364,9 @@ void ResetPowerups(void)
     through_active = false;
     laser_active = false;
     laser_cooldown = 0.0f;
-    sticky_timer = 0.0f;
-    laser_timer = 0.0f;
-    through_timer = 0.0f;
     memset(active_lasers, 0, sizeof(active_lasers));
     split_count = 0;
-    paddle.w = 48;
+    paddle.w = 32;
 }
 
 void LaunchBall(Ball* b)
@@ -374,6 +377,8 @@ void LaunchBall(Ball* b)
         b->dx = BALL_INIT_DX;
     }
     b->dy = -BALL_INIT_DY;
+    b->through_bricks = through_active;
+    through_active = false;
 }
 
 void AttachBallToPaddle(Ball* b)
@@ -384,6 +389,7 @@ void AttachBallToPaddle(Ball* b)
     b->dx = 0;
     b->dy = 0;
     b->active = true;
+    b->through_bricks = false;
 }
 
 void LoadLevel(int index, const std::array<Level, LEVEL_COUNT>& levels)
@@ -404,7 +410,7 @@ void LoadLevel(int index, const std::array<Level, LEVEL_COUNT>& levels)
         }
     }
 
-    paddle.w = 48;
+    paddle.w = 32;
     paddle.h = 8;
     paddle.x = 320 - paddle.w / 2;
     paddle.y = 330;
@@ -520,7 +526,6 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
             } else {
                 b->active = false;
                 if (CountBalls() == 0) {
-                    PlaySound(sounds.snd_death);
                     lives--;
                     ResetPowerups();
                     if (lives <= 0) {
@@ -555,6 +560,8 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
                 ady = BALL_INIT_DY;
             b->dx = hitPos * BALL_INIT_DX * 2.0f;
             b->dy = -ady;
+            b->through_bricks = through_active;
+            through_active = false;
 
             /* Split ball logic - mirror dx and offset slightly so the new
              * ball doesn't share the same position as the original. */
@@ -574,9 +581,9 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
         }
 
         /* Brick collision.
-         * With through_active, the ball passes through breakable bricks
+         * With the through flag, the ball passes through breakable bricks
          * destroying every one in its path this frame, but still bounces
-         * off indestructible bricks. Without through_active, we pick the
+         * off indestructible bricks. Without it, we pick the
          * shallowest-overlap axis to flip so side hits flip dx and
          * top/bottom hits flip dy. */
         bool bounced_x = false, bounced_y = false;
@@ -607,14 +614,14 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
                         }
                     }
                     PlaySound(sounds.snd_bounce);
-                    if (!through_active)
+                    if (!b->through_bricks)
                         goto next_ball;
                     continue;
                 }
 
                 HitBrick(r, c, offsetX, offsetY);
 
-                if (!through_active) {
+                if (!b->through_bricks) {
                     float bcx = bRect.x + bRect.width / 2;
                     float bcy = bRect.y + bRect.height / 2;
                     float dxo = (bRect.width / 2 + 4) - fabsf(b->x - bcx);
@@ -691,23 +698,6 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
     next_laser:;
     }
 
-    // Time-limited powerups expire after POWERUP_DURATION seconds
-    if (sticky_active) {
-        sticky_timer -= dt;
-        if (sticky_timer <= 0)
-            sticky_active = false;
-    }
-    if (laser_active) {
-        laser_timer -= dt;
-        if (laser_timer <= 0)
-            laser_active = false;
-    }
-    if (through_active) {
-        through_timer -= dt;
-        if (through_timer <= 0)
-            through_active = false;
-    }
-
     // Powerup animation timer (~8 FPS cycle)
     powerup_anim_timer += dt;
     if (powerup_anim_timer >= 0.125f) {
@@ -729,8 +719,8 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
             case ICON_ENLARGE: {
                 float oldW = paddle.w;
                 paddle.w += 16;
-                if (paddle.w > 96)
-                    paddle.w = 96;
+                if (paddle.w > 64)
+                    paddle.w = 64;
                 paddle.x -= (paddle.w - oldW) / 2;
                 if (paddle.x < offsetX)
                     paddle.x = offsetX;
@@ -741,8 +731,8 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
             case ICON_SHRINK: {
                 float oldW = paddle.w;
                 paddle.w -= 16;
-                if (paddle.w < 24)
-                    paddle.w = 24;
+                if (paddle.w < 32)
+                    paddle.w = 32;
                 paddle.x -= (paddle.w - oldW) / 2;
                 if (paddle.x < offsetX)
                     paddle.x = offsetX;
@@ -752,14 +742,14 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
             }
             case ICON_STICKY:
                 sticky_active = true;
-                sticky_timer = POWERUP_DURATION;
+                laser_active = false;
                 break;
             case ICON_500PTS:
-                score += 500;
+                AddScore(500);
                 break;
             case ICON_LASER:
                 laser_active = true;
-                laser_timer = POWERUP_DURATION;
+                sticky_active = false;
                 break;
             case ICON_SPLIT:
                 split_count += 2;
@@ -771,8 +761,11 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
                 barrier_active = true;
                 break;
             case ICON_SKIP:
-                current_level = (current_level + 1) % LEVEL_COUNT;
-                LoadLevel(current_level, levels);
+                current_level++;
+                if (current_level == LEVEL_COUNT)
+                    state = STATE_WIN;
+                else
+                    LoadLevel(current_level, levels);
                 return;
             case ICON_SPEEDUP:
                 for (int bi = 0; bi < MAX_BALLS; bi++) {
@@ -793,7 +786,6 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
                 break;
             case ICON_THROUGH:
                 through_active = true;
-                through_timer = POWERUP_DURATION;
                 break;
             }
         } else if (powerups[pi].y > 350) {
@@ -804,8 +796,11 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
     // Win condition
     if (bricks_remaining <= 0) {
         PlaySound(sounds.snd_level_complete);
-        current_level = (current_level + 1) % LEVEL_COUNT;
-        LoadLevel(current_level, levels);
+        current_level++;
+        if (current_level == LEVEL_COUNT)
+            state = STATE_WIN;
+        else
+            LoadLevel(current_level, levels);
     }
 }
 
@@ -907,6 +902,7 @@ int main(int argc, char* argv[])
                 current_level = lvl;
         }
     }
+    const int starting_level = current_level;
 
     InitWindow(640, 350, "Paranoid");
     load_sounds(sounds);
@@ -965,9 +961,14 @@ int main(int argc, char* argv[])
 
         switch (state) {
         case STATE_TITLE:
-            if (IsKeyPressed(KEY_SPACE))
+            if (IsKeyPressed(KEY_SPACE)) {
+                current_level = starting_level;
+                score = 0;
+                lives = 3;
+                next_extra_life_score = 4000;
+                LoadLevel(current_level, levels);
                 state = STATE_PLAY;
-            else if (IsKeyPressed(KEY_F1))
+            } else if (IsKeyPressed(KEY_F1))
                 state = STATE_INFO;
             break;
         case STATE_INFO:
@@ -990,10 +991,15 @@ int main(int argc, char* argv[])
             if (IsKeyPressed(KEY_SPACE)) {
                 lives = 3;
                 score = 0;
-                current_level = 0;
+                next_extra_life_score = 4000;
+                current_level = starting_level;
                 LoadLevel(current_level, levels);
                 state = STATE_PLAY;
             }
+            break;
+        case STATE_WIN:
+            if (IsKeyPressed(KEY_SPACE))
+                state = STATE_TITLE;
             break;
         }
 
@@ -1013,7 +1019,7 @@ int main(int argc, char* argv[])
             DrawTextEGA("P          - PAUSE", 180, 160, EGA_PALETTE[7]);
             DrawTextEGA("ESC        - RETURN TO TITLE", 180, 175, EGA_PALETTE[7]);
             DrawTextEGA("F10        - QUIT", 180, 190, EGA_PALETTE[7]);
-            DrawTextCenteredSmall("COLLECT B-O-N-U-S LETTERS IN ORDER FOR 1000 POINTS", 240, EGA_PALETTE[10]);
+            DrawTextCenteredSmall("COLLECT B-O-N-U-S LETTERS IN ORDER FOR 500 POINTS", 240, EGA_PALETTE[10]);
             DrawTextCenteredSmall("PRESS SPACE TO RETURN", 300, EGA_PALETTE[8]);
             break;
         case STATE_PLAY:
@@ -1027,6 +1033,11 @@ int main(int argc, char* argv[])
         case STATE_GAMEOVER:
             DrawTextEGA("GAME OVER", 280, 150, EGA_PALETTE[12]);
             DrawTextEGA("PRESS SPACE", 260, 200, EGA_PALETTE[7]);
+            break;
+        case STATE_WIN:
+            DrawTextCenteredMedium("CONGRATULATIONS", 95, EGA_PALETTE[14]);
+            DrawTextCenteredSmall("YOU HAVE COMPLETED ALL THIRTY LEVELS", 145, EGA_PALETTE[15]);
+            DrawTextCenteredSmall("PRESS SPACEBAR TO CONTINUE", 235, EGA_PALETTE[7]);
             break;
         }
         EndDrawing();
