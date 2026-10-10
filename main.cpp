@@ -904,7 +904,9 @@ int main(int argc, char* argv[])
     }
     const int starting_level = current_level;
 
-    InitWindow(640, 350, "Paranoid");
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    InitWindow(1280, 700, "Paranoid");
+    SetWindowMinSize(640, 350);
     load_sounds(sounds);
 
     char root_path[128];
@@ -948,6 +950,9 @@ int main(int argc, char* argv[])
         tex_font_small[i] = CreateTextureFromBitmask(&fonts.font_small[i][0][0], FONT_SMALL_W, FONT_SMALL_H, WHITE);
     for (int i = 0; i < FONT_MED_CHARS; i++)
         tex_font_medium[i] = CreateTextureFromBitmask(&fonts.font_medium[i][0][0], FONT_MED_W, FONT_MED_H, WHITE);
+
+    RenderTexture2D game_screen = LoadRenderTexture(640, 350);
+    SetTextureFilter(game_screen.texture, TEXTURE_FILTER_POINT);
 
     SetTargetFPS(60);
     LoadLevel(current_level, levels);
@@ -1003,7 +1008,7 @@ int main(int argc, char* argv[])
             break;
         }
 
-        BeginDrawing();
+        BeginTextureMode(game_screen);
         ClearBackground(EGA_PALETTE[0]);
 
         switch (state) {
@@ -1040,8 +1045,21 @@ int main(int argc, char* argv[])
             DrawTextCenteredSmall("PRESS SPACEBAR TO CONTINUE", 235, EGA_PALETTE[7]);
             break;
         }
+        EndTextureMode();
+
+        BeginDrawing();
+        ClearBackground(BLACK);
+        float scale = fminf(GetScreenWidth() / 640.0f, GetScreenHeight() / 350.0f);
+        Rectangle destination = {
+            (GetScreenWidth() - 640.0f * scale) / 2.0f,
+            (GetScreenHeight() - 350.0f * scale) / 2.0f,
+            640.0f * scale,
+            350.0f * scale
+        };
+        DrawTexturePro(game_screen.texture, { 0, 0, 640, -350 }, destination, { 0, 0 }, 0, WHITE);
         EndDrawing();
     }
+    UnloadRenderTexture(game_screen);
     CloseAudioDevice();
     CloseWindow();
     return 0;
