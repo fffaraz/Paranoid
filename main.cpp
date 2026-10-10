@@ -366,11 +366,9 @@ static void HitBrick(int r, int c, int offsetX, int offsetY)
 
     if (IsMultiHitBrick(type)) {
         grid[r][c] = type + 1;
-        PlaySound(sounds.snd_brick);
     } else {
         grid[r][c] = 0;
         bricks_remaining--;
-        PlaySound(sounds.snd_brick);
         uint8_t a = grid_attrs[r][c];
         if (a != 0xFF) {
             for (int pi = 0; pi < MAX_POWERUPS; pi++) {
@@ -574,9 +572,9 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
             topBounce = true;
         }
         if (topBounce)
-            PlaySound(sounds.snd_top_bounce);
+            play_sound(sounds, sounds.snd_top_bounce, 2);
         else if (sideBounce)
-            PlaySound(sounds.snd_bounce);
+            play_sound(sounds, sounds.snd_bounce, 2);
 
         // The barrier catches the ball at y=328; an uncaught ball is lost
         // once its center passes y=337 (ASM FUN_0000_2cd3 / 2d0a).
@@ -584,7 +582,7 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
             b->y = 328;
             b->dy = -fabsf(b->dy);
             barrier_active = false;
-            PlaySound(sounds.snd_barrier);
+            play_sound(sounds, sounds.snd_barrier, 2);
             continue;
         } else if (b->y > 337) {
             b->active = false;
@@ -592,7 +590,7 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
                 lives--;
                 ResetPowerups();
                 if (lives <= 0) {
-                    PlaySound(sounds.snd_game_over);
+                    play_sound(sounds, sounds.snd_game_over, 10);
                     state = STATE_GAMEOVER;
                     return;
                 }
@@ -610,7 +608,7 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
                 b->sticky_offset = b->x - paddle.x;
                 b->dx = 0;
                 b->dy = 0;
-                PlaySound(sounds.snd_paddle_catch);
+                play_sound(sounds, sounds.snd_paddle_catch, 4);
                 continue;
             }
             /* Angle based on hit position: dx set by where ball hits paddle,
@@ -639,7 +637,7 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
                 }
             }
 
-            PlaySound(sounds.snd_paddle);
+            play_sound(sounds, sounds.snd_paddle, 3);
         }
 
         /* Brick collision.
@@ -675,13 +673,14 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
                             bounced_y = true;
                         }
                     }
-                    PlaySound(sounds.snd_bounce);
+                    play_sound(sounds, sounds.snd_bounce, 2);
                     if (!b->through_bricks)
                         goto next_ball;
                     continue;
                 }
 
                 HitBrick(r, c, offsetX, offsetY);
+                play_sound(sounds, sounds.snd_paddle, 3);
 
                 if (!b->through_bricks) {
                     float bcx = bRect.x + bRect.width / 2;
@@ -724,7 +723,7 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
             active_lasers[slots[1]].x = paddle.x + paddle.w - 10;
             active_lasers[slots[1]].y = paddle.y;
             laser_cooldown = 0.2f;
-            PlaySound(sounds.snd_laser);
+            play_sound(sounds, sounds.snd_laser, 2);
         }
     }
 
@@ -749,9 +748,9 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
                     uint8_t type = grid[r][c];
                     if (type != 0x1C) {
                         HitBrick(r, c, offsetX, offsetY);
-                        PlaySound(sounds.snd_laser_hit);
+                        play_sound(sounds, sounds.snd_laser_hit, 3);
                     } else {
-                        PlaySound(sounds.snd_bounce);
+                        play_sound(sounds, sounds.snd_bounce, 2);
                     }
                     goto next_laser;
                 }
@@ -776,7 +775,9 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
         Rectangle puRect = { powerups[pi].x, powerups[pi].y, ICON_SHEET_W, ICON_FRAME_H };
         if (CheckCollisionRecs(puRect, pRectPU)) {
             powerups[pi].active = 0;
-            PlaySound(sounds.snd_powerup);
+            if (powerups[pi].type >= ICON_ENLARGE && powerups[pi].type <= ICON_THROUGH)
+                play_sound(sounds, sounds.snd_powerup[powerups[pi].type],
+                    powerups[pi].type == ICON_SKIP ? 9 : 8);
             switch (powerups[pi].type) {
             case ICON_ENLARGE: {
                 float oldW = paddle.w;
@@ -857,7 +858,7 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
 
     // Win condition
     if (bricks_remaining <= 0) {
-        PlaySound(sounds.snd_level_complete);
+        play_sound(sounds, sounds.snd_level_complete, 11);
         current_level++;
         if (current_level == LEVEL_COUNT)
             state = STATE_WIN;

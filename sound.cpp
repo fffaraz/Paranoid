@@ -29,7 +29,7 @@
  *   0x0CBE — barrier bounce
  *   0x0CC5 — game over fanfare
  *   0x0CDE — level complete fanfare
- *   0x0CF7..0x0D77 — 12 brick-destroy sounds (we use 0x0CF7)
+ *   0x0CF7..0x0D77 — 12 powerup pickup sounds, indexed by pickup type
  */
 
 constexpr float PIT_CLOCK = 1193182.0f;
@@ -127,36 +127,34 @@ void load_sounds(Sounds& sounds)
         sounds.snd_paddle_catch = MakePCSound(sr, segs, 1);
     }
 
-    /* 0x0CF7 — Brick destroy (category 0): div=2000 → -20×15t → -30×15t
-     * Sweeps 597 Hz up to ~954 Hz over 30 ticks (~430 ms). */
-    {
-        const int segs[][3] = {
-            { 2000, -20, 15 },
-            { 0, -30, 15 }
-        };
-        sounds.snd_brick = MakePCSound(sr, segs, 2);
-    }
-
-    /* Powerup catch — original reuses sticky catch pitch (1136 Hz, 5 ticks).
-     * No dedicated address in original, kept for UX feedback. */
-    {
-        const int segs[][3] = { { 1050, 0, 5 } };
-        sounds.snd_powerup = MakePCSound(sr, segs, 1);
-    }
-
-    /* Ball death — no sound in original game (FUN_0000_2D0A is silent).
-     * Reusing 0x0C9E pattern (descending tones) for UX feedback only. */
-    {
-        const int segs[][3] = {
-            { 1575, 0, 2 },
-            { 0, 251, 1 },
-            { 0, 0, 2 },
-            { 0, 273, 1 },
-            { 0, 0, 2 },
-            { 0, 264, 1 },
-            { 0, 0, 2 }
-        };
-        sounds.snd_death = MakePCSound(sr, segs, 7);
+    // Pickup patterns from the pointer table at 0x0C64 in PARANOID.COM.
+    // Each row is {starting divisor, tick count, signed divisor delta} pairs.
+    static const struct {
+        int start;
+        int segments[5][2];
+        int count;
+    } pickups[12] = {
+        { 2000, { { 15, -20 }, { 15, -30 } }, 2 },
+        { 2000, { { 30, 20 } }, 1 },
+        { 2000, { { 20, 100 }, { 1, -2000 }, { 20, 100 } }, 3 },
+        { 2000, { { 10, 0 }, { 1, -400 }, { 10, 0 }, { 1, -254 }, { 10, 0 } }, 5 },
+        { 4000, { { 30, -100 } }, 1 },
+        { 2000, { { 20, -20 }, { 1, 400 }, { 20, -20 } }, 3 },
+        { 1000, { { 15, -40 }, { 1, 450 }, { 15, -40 }, { 1, 450 }, { 15, -40 } }, 5 },
+        { 800, { { 13, 20 }, { 13, -20 }, { 13, 20 } }, 3 },
+        { 4000, { { 60, -60 } }, 1 },
+        { 2000, { { 20, -30 }, { 20, 30 } }, 2 },
+        { 2000, { { 20, 35 }, { 20, -35 } }, 2 },
+        { 4000, { { 20, -100 }, { 1, 2000 }, { 20, -100 } }, 3 },
+    };
+    for (int i = 0; i < 12; i++) {
+        int segments[5][3] = {};
+        for (int j = 0; j < pickups[i].count; j++) {
+            segments[j][0] = j == 0 ? pickups[i].start : 0;
+            segments[j][1] = pickups[i].segments[j][1];
+            segments[j][2] = pickups[i].segments[j][0];
+        }
+        sounds.snd_powerup[i] = MakePCSound(sr, segments, pickups[i].count);
     }
 
     // 0x0CB7 — Laser fire: div=500 (2386 Hz), +100 × 5t → ends at 1193 Hz
@@ -214,4 +212,16 @@ void load_sounds(Sounds& sounds)
         };
         sounds.snd_game_over = MakePCSound(sr, segs, 7);
     }
+}
+
+void play_sound(Sounds& sounds, Sound& effect, int priority)
+{
+    if (sounds.active && IsSoundPlaying(*sounds.active)) {
+        if (priority < sounds.active_priority)
+            return;
+        StopSound(*sounds.active);
+    }
+    sounds.active = &effect;
+    sounds.active_priority = priority;
+    PlaySound(effect);
 }
