@@ -57,6 +57,7 @@ Texture2D tex_bricks[BRICK_COUNT]; // Bitmaps section 2
 Texture2D tex_sprites; // Bitmaps section 3
 Texture2D tex_font_small[FONT_SMALL_CHARS];
 Texture2D tex_font_medium[FONT_MED_CHARS];
+Texture2D tex_font_large[FONT_LARGE_CHARS];
 
 // Individual 16x12 sprites extracted from section 3
 constexpr int ICON_FRAME_H = 12;
@@ -165,25 +166,55 @@ void DrawTextCenteredSmall(const char* text, int y, Color tint)
     DrawTextEGA(text, (640 - TextWidthSmall(text)) / 2, y, tint);
 }
 
+void DrawTextEGALarge(const char* text, int x, int y, Color tint)
+{
+    // FONTS.PAR section 3 is a set of title letters, not an ASCII font.
+    constexpr char glyphs[] = "BESTALOUNCRPID";
+    for (int i = 0; text[i]; i++) {
+        if (text[i] == ' ') {
+            x += 16;
+            continue;
+        }
+        const char* glyph = strchr(glyphs, text[i]);
+        if (glyph)
+            DrawTexture(tex_font_large[glyph - glyphs], x, y, tint);
+        x += FONT_LARGE_W;
+    }
+}
+
 void DrawTitleScreen(void)
 {
-    /* Title and credits — strings from original at 0x0b1a..0x0b56:
-     *   "Paranoid", "Bit Bucket", "Brothers", "is a", "production".
-     * Menu items from original at 0x09e2..0x0a40:
-     *   "Press F1 for information",
-     *   "Press F10 to quit to dos",
-     *   "Press spacebar to play".
-     * Version string from original at 0x053b: "VERSION 1.8". */
-    DrawTextCenteredMedium("PARANOID", 40, EGA_PALETTE[12]);
+    DrawRectangle(0, 0, 640, 280, EGA_PALETTE[7]);
+    DrawRectangle(16, 12, 608, 256, BLACK);
+    DrawRectangle(0, 0, 640, 1, WHITE);
+    DrawRectangle(0, 0, 1, 280, WHITE);
+    DrawRectangle(639, 0, 1, 280, EGA_PALETTE[8]);
+    DrawRectangle(0, 279, 640, 1, EGA_PALETTE[8]);
+    DrawRectangle(15, 11, 610, 1, EGA_PALETTE[8]);
+    DrawRectangle(15, 11, 1, 258, EGA_PALETTE[8]);
+    DrawRectangle(15, 268, 610, 1, WHITE);
+    DrawRectangle(624, 11, 1, 258, WHITE);
 
-    DrawTextCenteredMedium("THE BIT BUCKET BROTHERS", 100, EGA_PALETTE[14]);
-    DrawTextCenteredMedium("PRODUCTION", 120, EGA_PALETTE[14]);
+    DrawRectangle(182, 90, 276, 94, EGA_PALETTE[7]);
+    DrawRectangle(182, 90, 276, 1, WHITE);
+    DrawRectangle(182, 90, 1, 94, WHITE);
+    DrawRectangle(457, 90, 1, 94, EGA_PALETTE[8]);
+    DrawRectangle(182, 183, 276, 1, EGA_PALETTE[8]);
+    DrawRectangle(198, 102, 244, 70, EGA_PALETTE[7]);
+    DrawTextEGALarge("PARANOID", 224, 119, EGA_PALETTE[1]);
 
-    DrawTextCenteredMedium("PRESS SPACEBAR TO PLAY", 180, EGA_PALETTE[15]);
-    DrawTextCenteredMedium("PRESS F1 FOR INFORMATION", 210, EGA_PALETTE[7]);
-    DrawTextCenteredMedium("PRESS F10 TO QUIT TO DOS", 230, EGA_PALETTE[7]);
+    DrawRectangle(220, 284, 200, 40, EGA_PALETTE[7]);
+    DrawRectangle(220, 284, 200, 1, WHITE);
+    DrawRectangle(220, 284, 1, 40, WHITE);
+    DrawRectangle(419, 284, 1, 40, EGA_PALETTE[8]);
+    DrawRectangle(220, 323, 200, 1, EGA_PALETTE[8]);
+    DrawRectangle(232, 294, 176, 20, BLACK);
+    DrawTextEGAMedium("BIT BUCKET BROTHERS", 248, 297, EGA_PALETTE[10]);
 
-    DrawTextCenteredSmall("VERSION 1.8", 320, EGA_PALETTE[8]);
+    DrawTextEGAMedium("EVALUATION COPY", 0, 322, WHITE);
+    DrawTextEGAMedium("VERSION 1.8", 528, 290, WHITE);
+    DrawTextEGAMedium("PRESS SPACE TO PLAY", 472, 320, WHITE);
+    DrawTextEGA("F1 INFORMATION  F10 QUIT", 224, 335, EGA_PALETTE[7]);
 }
 
 enum GameState { STATE_TITLE,
@@ -202,6 +233,9 @@ int next_extra_life_score = 4000;
 
 constexpr int PLAY_ROWS = 19;
 constexpr int PLAY_COLS = 14;
+constexpr int PLAY_LEFT = 16;
+constexpr int PLAY_RIGHT = PLAY_LEFT + PLAY_COLS * BRICK_W;
+constexpr int BRICK_TOP = 12;
 
 uint8_t grid[PLAY_ROWS][PLAY_COLS];
 uint8_t grid_attrs[PLAY_ROWS][PLAY_COLS];
@@ -366,7 +400,7 @@ void ResetPowerups(void)
     laser_cooldown = 0.0f;
     memset(active_lasers, 0, sizeof(active_lasers));
     split_count = 0;
-    paddle.w = 32;
+    paddle.w = 48;
 }
 
 void LaunchBall(Ball* b)
@@ -410,14 +444,15 @@ void LoadLevel(int index, const std::array<Level, LEVEL_COUNT>& levels)
         }
     }
 
-    paddle.w = 32;
+    paddle.w = 48;
     paddle.h = 8;
-    paddle.x = 320 - paddle.w / 2;
+    paddle.x = (PLAY_LEFT + PLAY_RIGHT - paddle.w) / 2;
     paddle.y = 330;
     paddle.speed = 300;
 
     memset(balls, 0, sizeof(balls));
     AttachBallToPaddle(&balls[0]);
+    LaunchBall(&balls[0]);
 
     memset(powerups, 0, sizeof(powerups));
     ResetPowerups();
@@ -438,9 +473,9 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
         return;
     }
 
-    int offsetX = (640 - (PLAY_COLS * BRICK_W)) / 2;
-    int rightEdge = offsetX + PLAY_COLS * BRICK_W;
-    int offsetY = 32;
+    int offsetX = PLAY_LEFT;
+    int rightEdge = PLAY_RIGHT;
+    int offsetY = BRICK_TOP;
 
     if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_LEFT))
         paddle.x -= paddle.speed * dt;
@@ -533,8 +568,9 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
                         state = STATE_GAMEOVER;
                         return;
                     }
-                    // Respawn a ball attached to paddle
+                    // A normal replacement ball launches automatically.
                     AttachBallToPaddle(&balls[0]);
+                    LaunchBall(&balls[0]);
                 }
                 continue;
             }
@@ -806,13 +842,36 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
 
 void DrawPlay()
 {
-    int offsetX = (640 - (PLAY_COLS * BRICK_W)) / 2;
-    int rightEdge = offsetX + PLAY_COLS * BRICK_W;
-    int offsetY = 32;
+    int offsetX = PLAY_LEFT;
+    int rightEdge = PLAY_RIGHT;
+    int offsetY = BRICK_TOP;
 
-    DrawRectangle(offsetX - 16, 0, 16, 350, EGA_PALETTE[7]);
-    DrawRectangle(rightEdge, 0, 16, 350, EGA_PALETTE[7]);
-    DrawRectangle(offsetX - 16, 0, PLAY_COLS * BRICK_W + 32, 16, EGA_PALETTE[7]);
+    // The original playfield occupies the left 480 pixels, with a separate
+    // gray control panel on the right (rather than a centered playfield).
+    DrawRectangle(0, 0, 480, 350, EGA_PALETTE[7]);
+    DrawRectangle(PLAY_LEFT, BRICK_TOP, PLAY_RIGHT - PLAY_LEFT, 326, BLACK);
+    DrawRectangle(0, 0, 480, 1, WHITE);
+    DrawRectangle(0, 0, 1, 350, WHITE);
+    DrawRectangle(479, 0, 1, 350, EGA_PALETTE[8]);
+    DrawRectangle(0, 349, 480, 1, EGA_PALETTE[8]);
+    DrawRectangle(15, 11, 450, 1, EGA_PALETTE[8]);
+    DrawRectangle(15, 11, 1, 328, EGA_PALETTE[8]);
+    DrawRectangle(15, 338, 450, 1, WHITE);
+    DrawRectangle(464, 11, 1, 328, WHITE);
+
+    DrawRectangle(496, 0, 144, 350, EGA_PALETTE[7]);
+    DrawRectangle(496, 0, 1, 350, WHITE);
+    DrawRectangle(639, 0, 1, 350, EGA_PALETTE[8]);
+    for (int y = 20; y <= 176; y += 52) {
+        DrawRectangle(524, y, 88, 44, EGA_PALETTE[7]);
+        DrawRectangle(524, y, 88, 1, WHITE);
+        DrawRectangle(524, y, 1, 44, WHITE);
+        DrawRectangle(611, y, 1, 44, EGA_PALETTE[8]);
+        DrawRectangle(524, y + 43, 88, 1, EGA_PALETTE[8]);
+        DrawRectangle(540, y + 14, 56, 18, BLACK);
+        DrawRectangle(539, y + 13, 58, 1, WHITE);
+        DrawRectangle(539, y + 13, 1, 20, WHITE);
+    }
 
     for (int r = 0; r < PLAY_ROWS; r++) {
         for (int c = 0; c < PLAY_COLS; c++) {
@@ -840,7 +899,8 @@ void DrawPlay()
         DrawRectangle(offsetX, 348, PLAY_COLS * BRICK_W, 2, EGA_PALETTE[15]);
     }
 
-    DrawRectangle(paddle.x, paddle.y, paddle.w, paddle.h, EGA_PALETTE[12]);
+    DrawTextEGALarge("PARANOID", 144, 256, EGA_PALETTE[8]);
+    DrawRectangle(paddle.x, paddle.y, paddle.w, paddle.h, WHITE);
 
     // Draw lasers
     for (int i = 0; i < MAX_LASERS; i++) {
@@ -851,30 +911,45 @@ void DrawPlay()
 
     for (int bi = 0; bi < MAX_BALLS; bi++) {
         if (balls[bi].active)
-            DrawCircle(balls[bi].x, balls[bi].y, 4, EGA_PALETTE[14]);
+            DrawCircle(balls[bi].x, balls[bi].y, 4, WHITE);
     }
 
-    char scoreStr[32];
-    snprintf(scoreStr, sizeof(scoreStr), "SCORE %d", score);
-    DrawTextEGA(scoreStr, 12, 16, EGA_PALETTE[15]);
-
-    char livesStr[32];
-    snprintf(livesStr, sizeof(livesStr), "BALLS %d", lives);
-    DrawTextEGA(livesStr, 560, 16, EGA_PALETTE[15]);
-
-    char levelStr[32];
-    snprintf(levelStr, sizeof(levelStr), "LEVEL %d", current_level + 1);
-    DrawTextEGA(levelStr, 560, 32, EGA_PALETTE[15]);
-
-    if (letters_collected > 0) {
-        DrawTextEGA("BONUS", 560, 56, EGA_PALETTE[15]);
-        for (int b = 0; b < 5; b++) {
-            if (letters_collected & (1 << b)) {
-                char bonusChar[2] = { "BONUS"[b], '\0' };
-                DrawTextEGA(bonusChar, 560 + b * 8, 72, EGA_PALETTE[12]);
-            }
-        }
+    DrawTextEGA("SCORE", 548, 23, BLACK);
+    DrawTextEGA("LEVEL", 548, 75, BLACK);
+    DrawTextEGA("BALLS", 548, 127, BLACK);
+    DrawTextEGA("BONUS", 548, 179, BLACK);
+    auto draw_panel_number = [](int value, int y) {
+        char digits[32];
+        snprintf(digits, sizeof(digits), "%d", value);
+        int length = strlen(digits);
+        int x = 592 - length * DIGIT_W;
+        for (int i = 0; i < length; i++)
+            DrawTexture(tex_digits[digits[i] - '0' + 1], x + i * DIGIT_W, y, WHITE);
+    };
+    draw_panel_number(score, 38);
+    draw_panel_number(current_level + 1, 90);
+    draw_panel_number(lives, 142);
+    for (int b = 0; b < 5; b++) {
+        char bonusChar[2] = { "BONUS"[b], '\0' };
+        DrawTextEGA(bonusChar, 548 + b * 8, 194,
+            (letters_collected & (1 << b)) ? EGA_PALETTE[14] : WHITE);
     }
+
+    DrawRectangle(526, 238, 86, 20, EGA_PALETTE[7]);
+    DrawRectangle(526, 238, 86, 1, WHITE);
+    DrawRectangle(526, 238, 1, 20, WHITE);
+    DrawRectangle(611, 238, 1, 20, EGA_PALETTE[8]);
+    DrawRectangle(526, 257, 86, 1, EGA_PALETTE[8]);
+    DrawTextEGAMedium("PARANOID", 537, 241, EGA_PALETTE[1]);
+    DrawTextEGAMedium("IS A", 552, 264, BLACK);
+    DrawRectangle(518, 284, 98, 38, EGA_PALETTE[7]);
+    DrawRectangle(518, 284, 98, 1, WHITE);
+    DrawRectangle(518, 284, 1, 38, WHITE);
+    DrawRectangle(615, 284, 1, 38, EGA_PALETTE[8]);
+    DrawRectangle(518, 321, 98, 1, EGA_PALETTE[8]);
+    DrawTextEGAMedium("BIT BUCKET", 527, 287, EGA_PALETTE[1]);
+    DrawTextEGAMedium("BROTHERS", 531, 301, EGA_PALETTE[1]);
+    DrawTextEGAMedium("PRODUCTION", 526, 329, BLACK);
 }
 
 bool getRootPath(char* path, int len)
@@ -950,6 +1025,8 @@ int main(int argc, char* argv[])
         tex_font_small[i] = CreateTextureFromBitmask(&fonts.font_small[i][0][0], FONT_SMALL_W, FONT_SMALL_H, WHITE);
     for (int i = 0; i < FONT_MED_CHARS; i++)
         tex_font_medium[i] = CreateTextureFromBitmask(&fonts.font_medium[i][0][0], FONT_MED_W, FONT_MED_H, WHITE);
+    for (int i = 0; i < FONT_LARGE_CHARS; i++)
+        tex_font_large[i] = CreateTextureFromBitmask(&fonts.font_large[i][0][0], FONT_LARGE_W, FONT_LARGE_H, WHITE);
 
     RenderTexture2D game_screen = LoadRenderTexture(640, 350);
     SetTextureFilter(game_screen.texture, TEXTURE_FILTER_POINT);
