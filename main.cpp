@@ -313,6 +313,10 @@ bool letters_in_order = true;
  * per-entity counter resets at 3.  At ~120 iterations/sec on original
  * hardware ≈ 38 seconds.  We use 30s as a reasonable translation.) */
 float speed_timer = 0.0f;
+float life_start_delay = 0.0f;
+// The original waits for 120 vertical retraces after drawing the new bat
+// and ball (FUN_0000_3610 / FUN_0000_3b4c).
+constexpr float LIFE_START_DELAY = 120.0f / 70.0f;
 constexpr float SPEED_INCREASE_INTERVAL = 30.0f; // seconds between |dy| bumps
 constexpr float SPEED_INCREASE_AMOUNT = 20.0f; // pixels/sec per bump
 
@@ -426,6 +430,26 @@ void AttachBallToPaddle(Ball* b)
     b->through_bricks = false;
 }
 
+void StartLife(void)
+{
+    ResetPowerups();
+    memset(powerups, 0, sizeof(powerups));
+    memset(balls, 0, sizeof(balls));
+
+    // FUN_0000_3904 centers the 48-pixel bat; FUN_0000_38e0 creates
+    // the ball at (237, 304), moving right and upward at equal speeds.
+    paddle.x = 216;
+    Ball* b = &balls[0];
+    b->x = 237;
+    b->y = 304;
+    b->dx = BALL_INIT_DX;
+    b->dy = -BALL_INIT_DX;
+    b->active = true;
+
+    speed_timer = 0.0f;
+    life_start_delay = LIFE_START_DELAY;
+}
+
 void LoadLevel(int index, const std::array<Level, LEVEL_COUNT>& levels)
 {
     if (index < 0 || index >= LEVEL_COUNT)
@@ -450,17 +474,11 @@ void LoadLevel(int index, const std::array<Level, LEVEL_COUNT>& levels)
     paddle.y = 329;
     paddle.speed = 300;
 
-    memset(balls, 0, sizeof(balls));
-    AttachBallToPaddle(&balls[0]);
-    LaunchBall(&balls[0]);
-
-    memset(powerups, 0, sizeof(powerups));
-    ResetPowerups();
+    StartLife();
 
     letters_collected = 0;
     letters_next = 1;
     letters_in_order = true;
-    speed_timer = 0.0f;
     powerup_anim_timer = 0.0f;
     powerup_anim_frame = 0;
 }
@@ -471,6 +489,15 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
     if (IsKeyPressed(KEY_ESCAPE)) {
         state = STATE_TITLE;
         return;
+    }
+
+    // As in the DOS game, the new ball and centered bat are visible briefly
+    // before movement resumes. A key press can end the wait early.
+    if (life_start_delay > 0.0f) {
+        life_start_delay -= dt;
+        if (GetKeyPressed() == 0 && life_start_delay > 0.0f)
+            return;
+        life_start_delay = 0.0f;
     }
 
     int offsetX = PLAY_LEFT;
@@ -551,29 +578,28 @@ void UpdatePlay(float dt, const std::array<Level, LEVEL_COUNT>& levels)
         else if (sideBounce)
             PlaySound(sounds.snd_bounce);
 
-        // Ball death / barrier
-        if (b->y > 350) {
-            if (barrier_active) {
-                b->y = 350;
-                b->dy = -fabsf(b->dy);
-                barrier_active = false;
-                PlaySound(sounds.snd_barrier);
-            } else {
-                b->active = false;
-                if (CountBalls() == 0) {
-                    lives--;
-                    ResetPowerups();
-                    if (lives <= 0) {
-                        PlaySound(sounds.snd_game_over);
-                        state = STATE_GAMEOVER;
-                        return;
-                    }
-                    // A normal replacement ball launches automatically.
-                    AttachBallToPaddle(&balls[0]);
-                    LaunchBall(&balls[0]);
+        // The barrier catches the ball at y=328; an uncaught ball is lost
+        // once its center passes y=337 (ASM FUN_0000_2cd3 / 2d0a).
+        if (barrier_active && b->y > 328) {
+            b->y = 328;
+            b->dy = -fabsf(b->dy);
+            barrier_active = false;
+            PlaySound(sounds.snd_barrier);
+            continue;
+        } else if (b->y > 337) {
+            b->active = false;
+            if (CountBalls() == 0) {
+                lives--;
+                ResetPowerups();
+                if (lives <= 0) {
+                    PlaySound(sounds.snd_game_over);
+                    state = STATE_GAMEOVER;
+                    return;
                 }
-                continue;
+                StartLife();
+                return;
             }
+            continue;
         }
 
         // Paddle collision
@@ -896,7 +922,7 @@ void DrawPlay()
 
     // Draw barrier if active
     if (barrier_active) {
-        DrawRectangle(offsetX, 348, PLAY_COLS * BRICK_W, 2, EGA_PALETTE[15]);
+        DrawRectangle(offsetX, 328, PLAY_COLS * BRICK_W, 2, EGA_PALETTE[15]);
     }
 
     DrawTextEGALarge("PARANOID", 144, 256, EGA_PALETTE[8]);
