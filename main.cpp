@@ -445,9 +445,9 @@ void LoadLevel(int index, const std::array<Level, LEVEL_COUNT>& levels)
     }
 
     paddle.w = 48;
-    paddle.h = 8;
+    paddle.h = 4;
     paddle.x = (PLAY_LEFT + PLAY_RIGHT - paddle.w) / 2;
-    paddle.y = 330;
+    paddle.y = 329;
     paddle.speed = 300;
 
     memset(balls, 0, sizeof(balls));
@@ -900,7 +900,14 @@ void DrawPlay()
     }
 
     DrawTextEGALarge("PARANOID", 144, 256, EGA_PALETTE[8]);
-    DrawRectangle(paddle.x, paddle.y, paddle.w, paddle.h, WHITE);
+    // The DOS bat is four EGA scanlines tall. Its first and last lines
+    // leave one pixel clear at each end; the middle two span its full width.
+    int bat_x = (int)paddle.x;
+    int bat_y = (int)paddle.y;
+    int bat_w = (int)paddle.w;
+    DrawRectangle(bat_x + 1, bat_y, bat_w - 2, 1, WHITE);
+    DrawRectangle(bat_x, bat_y + 1, bat_w, 2, WHITE);
+    DrawRectangle(bat_x + 1, bat_y + 3, bat_w - 2, 1, WHITE);
 
     // Draw lasers
     for (int i = 0; i < MAX_LASERS; i++) {
