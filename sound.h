@@ -16,11 +16,9 @@ struct Sounds {
     Sound snd_level_complete; // level cleared fanfare
     Sound snd_ball_lost; // 0xCC5: the last ball is lost (every life)
     Sound* active = nullptr; // the original PC speaker has one voice
-    int active_priority = 0;
 };
 
 void load_sounds(Sounds& sounds);
-void play_sound(Sounds& sounds, Sound& effect, int priority);
 // Play a sound the simulation started, by its pattern address in the original
-// (sim.h, OrigState::sounds), with the original's priority.
+// (sim.h, OrigState::sounds).
 void play_pattern(Sounds& sounds, uint16_t pattern);

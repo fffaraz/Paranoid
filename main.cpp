@@ -55,11 +55,14 @@ int main(int argc, char* argv[])
     const char* replay_path = nullptr;
     const char* trace_path = nullptr;
     int starting_level = 1; // remake addition: -l N
+    bool quiet = false;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) {
             int lvl = atoi(argv[++i]);
             if (lvl >= 1 && lvl <= LEVEL_COUNT)
                 starting_level = lvl;
+        } else if ((argv[i][0] == '-' || argv[i][0] == '/') && (argv[i][1] | 0x20) == 'q' && argv[i][2] == 0) {
+            quiet = true; // 6154: no sound effects
         } else if (strcmp(argv[i], "--replay") == 0 && i + 1 < argc) {
             replay_path = argv[++i];
         } else if (strcmp(argv[i], "--trace") == 0 && i + 1 < argc) {
@@ -119,6 +122,7 @@ int main(int argc, char* argv[])
 
     SetTargetFPS(60);
     InitGame(levels);
+    orig.b(addr::QUIET) = quiet ? 1 : 0;
     StartTitle();
 
     while (!WindowShouldClose()) {

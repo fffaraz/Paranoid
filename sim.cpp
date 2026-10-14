@@ -45,8 +45,85 @@ constexpr uint16_t ARG_X = 0xd390, ARG_Y = 0xd392, CELL_COL = 0xd394, CELL_ROW =
 
 uint16_t BallAddr(uint8_t i) { return uint16_t(BALLS + i * 16); }
 
-// 52df: start a sound.
-void PlaySound(OrigState& s, uint16_t pattern) { s.sounds.push_back(pattern); }
+// 0xc7c..0xd83: the sound patterns. Each is a priority byte, a start divisor
+// word, then (ticks, signed delta word) segments, ended by 0xff.
+constexpr uint16_t PATTERNS = 0xc7c;
+constexpr uint8_t T_PATTERNS[264] = {
+    0x04, 0x1a, 0x04, 0x05, 0x00, 0x00, 0xff, 0x02, 0x48, 0x03, 0x05, 0x00, 0x00, 0xff, 0x02, 0xbc,
+    0x02, 0x05, 0x00, 0x00, 0xff, 0x03, 0x27, 0x06, 0x02, 0x00, 0x00, 0x01, 0x0d, 0x02, 0x02, 0x00,
+    0x00, 0xff, 0x03, 0x27, 0x06, 0x02, 0x00, 0x00, 0x01, 0xfb, 0x00, 0x02, 0x00, 0x00, 0x01, 0x11,
+    0x01, 0x02, 0x00, 0x00, 0x01, 0x08, 0x01, 0x02, 0x00, 0x00, 0xff, 0x04, 0xf4, 0x01, 0x05, 0x64,
+    0x00, 0xff, 0x02, 0x0d, 0x02, 0x05, 0x00, 0x00, 0xff, 0x0a, 0xd0, 0x07, 0x1e, 0x14, 0x00, 0x01,
+    0xd4, 0xfe, 0x1e, 0x14, 0x00, 0x01, 0xd4, 0xfe, 0x1e, 0x14, 0x00, 0x01, 0xd4, 0xfe, 0x1e, 0x14,
+    0x00, 0xff, 0x0b, 0xd0, 0x07, 0x1e, 0xec, 0xff, 0x01, 0x2c, 0x01, 0x1e, 0xec, 0xff, 0x01, 0x2c,
+    0x01, 0x1e, 0xec, 0xff, 0x01, 0x2c, 0x01, 0x1e, 0xec, 0xff, 0xff, 0x08, 0xd0, 0x07, 0x0f, 0xec,
+    0xff, 0x0f, 0xe2, 0xff, 0xff, 0x08, 0xd0, 0x07, 0x1e, 0x14, 0x00, 0xff, 0x08, 0xd0, 0x07, 0x14,
+    0x64, 0x00, 0x01, 0x30, 0xf8, 0x14, 0x64, 0x00, 0xff, 0x08, 0xd0, 0x07, 0x0a, 0x00, 0x00, 0x01,
+    0x70, 0xfe, 0x0a, 0x00, 0x00, 0x01, 0x02, 0xff, 0x0a, 0x00, 0x00, 0xff, 0x08, 0xa0, 0x0f, 0x1e,
+    0x9c, 0xff, 0xff, 0x08, 0xd0, 0x07, 0x14, 0xec, 0xff, 0x01, 0x90, 0x01, 0x14, 0xec, 0xff, 0xff,
+    0x08, 0xe8, 0x03, 0x0f, 0xd8, 0xff, 0x01, 0xc2, 0x01, 0x0f, 0xd8, 0xff, 0x01, 0xc2, 0x01, 0x0f,
+    0xd8, 0xff, 0xff, 0x08, 0x20, 0x03, 0x0d, 0x14, 0x00, 0x0d, 0xec, 0xff, 0x0d, 0x14, 0x00, 0xff,
+    0x09, 0xa0, 0x0f, 0x3c, 0xc4, 0xff, 0xff, 0x08, 0xd0, 0x07, 0x14, 0xe2, 0xff, 0x14, 0x1e, 0x00,
+    0xff, 0x08, 0xd0, 0x07, 0x14, 0x23, 0x00, 0x14, 0xdd, 0xff, 0xff, 0x08, 0xa0, 0x0f, 0x14, 0x9c,
+    0xff, 0x01, 0xd0, 0x07, 0x14, 0x9c, 0xff, 0xff,
+};
+uint8_t PatternByte(uint16_t a) { return T_PATTERNS[uint16_t(a - PATTERNS) % sizeof(T_PATTERNS)]; }
+
+// The sound player's state (52df / 521a).
+constexpr uint16_t SOUND_PRIORITY = 0xcf0e; // 0: nothing playing
+constexpr uint16_t SOUND_NEW = 0xcf0f;
+constexpr uint16_t SOUND_PTR = 0xcf10;
+constexpr uint16_t SOUND_TICKS = 0xcf12;
+constexpr uint16_t SOUND_DIVISOR = 0xcf13;
+constexpr uint16_t SOUND_DELTA = 0xcf15;
+
+// 52df: start a sound unless one with a higher priority is playing. Started
+// sounds are also queued in s.sounds for the caller to play.
+void PlaySound(OrigState& s, uint16_t pattern)
+{
+    const uint8_t priority = PatternByte(pattern);
+    if (priority < s.b(SOUND_PRIORITY))
+        return;
+    s.b(SOUND_PRIORITY) = priority;
+    s.b(SOUND_NEW) = 1;
+    s.set_w(SOUND_PTR, uint16_t(pattern + 1));
+    s.sounds.push_back(pattern);
+}
+
+// 521a: one tick of the sound player, without the speaker. While a sound
+// plays it keeps the settle phase going (0xd254 = 0); quiet mode (0xced1)
+// skips it all.
+void fcn_521a_sound_tick(OrigState& s)
+{
+    if (s.b(SOUND_PRIORITY) == 0 || s.b(QUIET))
+        return;
+    s.b(SETTLE) = 0;
+    if (s.b(SOUND_NEW)) {
+        // The start divisor, then the first segment.
+        const uint16_t p = s.w(SOUND_PTR);
+        s.set_w(SOUND_DIVISOR, uint16_t(PatternByte(p) | PatternByte(uint16_t(p + 1)) << 8));
+        s.set_w(SOUND_PTR, uint16_t(p + 2));
+        s.b(SOUND_NEW) = 0;
+    } else if (s.b(SOUND_TICKS) != 0) {
+        s.b(SOUND_TICKS)--;
+        if (s.w(SOUND_DELTA))
+            s.set_w(SOUND_DIVISOR, uint16_t(s.w(SOUND_DIVISOR) + s.w(SOUND_DELTA)));
+        return;
+    }
+    // 526c: the next segment, or the end.
+    const uint16_t p = s.w(SOUND_PTR);
+    s.set_w(SOUND_PTR, uint16_t(p + 1));
+    s.b(SOUND_TICKS) = PatternByte(p);
+    if (s.b(SOUND_TICKS) == 0xff) {
+        s.b(SOUND_PRIORITY) = 0; // the speaker goes off
+        return;
+    }
+    s.set_w(SOUND_DELTA, uint16_t(PatternByte(uint16_t(p + 1)) | PatternByte(uint16_t(p + 2)) << 8));
+    s.set_w(SOUND_PTR, uint16_t(p + 3));
+    s.b(SOUND_TICKS)--;
+    if (s.w(SOUND_DELTA))
+        s.set_w(SOUND_DIVISOR, uint16_t(s.w(SOUND_DIVISOR) + s.w(SOUND_DELTA)));
+}
 
 // 29fa: brick type at (col, row). Only the low byte of col is multiplied.
 uint8_t fcn_29fa_get_brick(const OrigState& s, uint16_t col, uint16_t row)
@@ -1210,7 +1287,7 @@ void SimInit(OrigState& s, const std::array<Level, LEVEL_COUNT>& levels)
     s.b(LEVEL_DIGITS + 2) = 0xff;
     s.b(LIVES_DIGITS + 2) = 0xff;
     s.set_w(PENDING_POINTS, 0);
-    s.b(0xcf0e) = 0;
+    s.b(SOUND_PRIORITY) = 0;
     s.b(SCORE_DIV) = 1;
     s.b(ICON_ANIM_DIV) = 4;
     s.b(ICON_FALL_DIV) = 1;
@@ -1279,7 +1356,7 @@ void SimGameStart(OrigState& s)
     s.b(LIVES_DIGITS) = 0;
     s.b(LIVES_DIGITS + 1) = 3;
     s.b(DEMO) = 0;
-    s.b(0xcf0e) = 0;
+    s.b(SOUND_PRIORITY) = 0;
     s.b(ESCAPE) = 0;
 }
 
@@ -1340,6 +1417,7 @@ TickStatus SimPlayTick(OrigState& s)
     fcn_5be5_barrier_line(s);
     fcn_5e65_letters(s);
     fcn_5ee1_score_count(s);
+    fcn_521a_sound_tick(s);
     return TickStatus::Ran;
 }
 
@@ -1361,10 +1439,11 @@ PlayResult SimPlayResult(OrigState& s)
 bool SimSettleStep(OrigState& s, int& step)
 {
     // One pass of 36fd: balls, bat, lasers and icons stay still while the
-    // flashes and the score finish. At least 2 passes.
+    // flashes, the score and the sound finish. At least 2 passes.
     s.b(SETTLE) = 1;
     fcn_5b26_flash(s);
     fcn_5ee1_score_count(s);
+    fcn_521a_sound_tick(s);
     SimFlipPage(s);
     if (++step < 2 || s.b(SETTLE) == 0)
         return true;

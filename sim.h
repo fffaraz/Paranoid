@@ -26,6 +26,7 @@ constexpr uint16_t ICONS = 0xc2cd; // 5 slots x 9 bytes, see ICON_*
 constexpr uint16_t LASERS = 0xc30e; // 4 slots x 16 bytes, see LASER_*
 constexpr uint16_t DEMO_LEVEL_PTR = 0xcece; // next entry of the demo level list
 constexpr uint16_t DEMO = 0xced0;
+constexpr uint16_t QUIET = 0xced1; // /Q: the sound player does nothing
 constexpr uint16_t INFO_ICONS = 0xced3;
 constexpr uint16_t SCROLL_POS = 0xcf0b; // title scroller: next character, 0x3a5..0x522
 constexpr uint16_t SCROLL_SHIFT = 0xcf0d; // and its pixel offset, 0, 2, 4, 6
@@ -95,7 +96,7 @@ struct OrigState {
     std::array<uint8_t, 0x10000> mem {};
     bool faithful_bugs = true; // reproduce the original's bugs (TODO.md, Decisions)
     bool paused = false; // inside the pause handler (3cc8)
-    std::vector<uint16_t> sounds; // sounds started, by pattern address; the caller empties it
+    std::vector<uint16_t> sounds; // sounds started (52df accepted them), by pattern address; the caller empties it
 
     uint8_t& b(uint16_t a) { return mem[a]; }
     uint8_t b(uint16_t a) const { return mem[a]; }

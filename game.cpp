@@ -126,8 +126,11 @@ int TicksDue(float dt)
 
 void PlaySimSounds()
 {
-    for (uint16_t pattern : orig.sounds)
-        play_pattern(sounds, pattern);
+    // Quiet mode (/Q): the original's player (521a) does nothing.
+    if (!orig.b(addr::QUIET)) {
+        for (uint16_t pattern : orig.sounds)
+            play_pattern(sounds, pattern);
+    }
     orig.sounds.clear();
 }
 
