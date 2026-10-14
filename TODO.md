@@ -24,6 +24,10 @@ game to check it.
 - **Tick** = one iteration of the original game loop. It waits for one vertical
   retrace (`653b` → `65e9`), so it runs at **70 Hz** (EGA mode 0x10 on VGA).
   `sound.cpp` already uses `TICK_HZ = 70`.
+- **`paranoid-v1.8/PARANOID.c`** is a decompiled C version of the same code
+  (function names like `fcn.00002bec` = address `2bec`, RAM as `*0xd247`). It
+  is often easier to read than the asm; check doubtful branches against the
+  asm bytes.
 - **Coordinates** are in 640×350 screen pixels unless marked "col". A "col" is
   an 8-pixel byte column, so col 10 = x 80.
 - Text calls such as `fcn.3e8a` take `ax` = col and `bx` = y in pixels.
@@ -141,7 +145,11 @@ items are per-tick integers.
   dx negated (same x, y, dy, sub-step counter and flags), split count −1,
   balls +1.
 - A ball with y > 323 gets the "below bat" flag (bit 2) and can't be hit by
-  the bat any more (`2d0a`).
+  the bat any more (`2d0a`). The flag is recomputed every tick.
+- The bat test (`2bec`) doesn't check which way the ball is moving. A ball
+  coming back **up** off the barrier that is at exactly y = 323 over the bat
+  gets dy flipped downward again. Porting `2bec` literally reproduces this;
+  don't "fix" it without asking.
 
 **Remake:** `main.cpp` ~603–641 uses a smooth angle (`hitPos * BALL_INIT_DX * 2`),
 a circle-vs-rect test, a speed floor at `BALL_INIT_DY`, and a split copy offset
@@ -196,8 +204,20 @@ straight up; the ball can't be saved once it is past y = 323.
 brick, and picks the axis by smallest overlap.
 
 **Do:** port `2693` and its helpers literally (they are integer-only). Draw
-the ball with its original 8×6 shape: find the sprite drawn by `5961`/`54b5`
-for slot data `0xc2fa`.
+the ball as the original's 8×6 white (colour 15) sprite, with its top-left at
+(x, y) (`52ff`, shape table `0xa53`, drawn by `564a`; rows below y = 338 are
+clipped):
+
+```
+..####..
+.######.
+########
+########
+.######.
+..####..
+```
+
+The remake draws `DrawCircle(x, y, 4)` (`main.cpp` ~948).
 
 **Accept:** a ball hitting the gap between two bricks breaks both, like the
 original.
@@ -251,6 +271,10 @@ release stuck balls. `ICON_SHRINK` doesn't move stuck balls.
 - Hit (`2255`): looks up the one cell at (x, y). If any brick is there, run
   `2a73` (does nothing for `0x1C`), play `0xC9E`, remove the shot.
 - Lasers move only during play (`2298`, called from `3658`).
+- Drawing (`5e23` → `5c3a`, shape table `0xa9f`): a solid 3×8 yellow
+  (colour 14) bar with its top-left at (x, y), clipped at the top of the
+  playfield. The remake's 3×8 rectangle is the right size but is centred on
+  (x, y) (`main.cpp` ~942).
 
 **Remake:** `main.cpp` ~708–760 fires two shots from the bat edges, has 10
 slots, a 0.2 s cooldown, moves at 300 px/s, and uses the wall sound for
@@ -329,8 +353,8 @@ then show their next state.
 - On each increment, `5f79` compares the score with the next threshold. When
   reached: lives +1 (`259a`), play sound **`0xD3C`**, threshold += 4000.
 - The +500 icon (`253f`) and the letter bonus (`3ad1`, +200 out of order /
-  `253f`, +500 in order) add to the score digits **directly**, not through the
-  pending counter.
+  `253f`, +500 in order; but see item 32: in practice it is always 2 × 200)
+  add to the score digits **directly**, not through the pending counter.
 - The bonus is awarded from `5e83` when the letter mask equals `0x1F`.
 
 **Remake:** `AddScore` (`main.cpp` ~335) adds at once and plays no sound for
@@ -749,6 +773,88 @@ Coordinates the remake has slightly wrong, taken from the drawing tables:
 
 Dump any table with a small script (offset = address − 0x100; words are
 little-endian; `0xFFFF` ends a list).
+
+### [ ] 31. F10 shows the registration screen before quitting
+
+**Original:** F10 quits from the attract loop (`3c95`) and during play
+(`4f53` → table `0x113` → `3c95`; also `3cdc`). Before exiting it:
+1. silences the speaker and restores the keyboard handler and text mode,
+2. **saves the high-score table** (`34d7`),
+3. shows a text-mode exit screen (`4f26` → `4ed0`) and waits for a key
+   (`4f72`),
+4. moves the cursor to row 24 and exits.
+
+The screen is 80×25 text. The text at `0x1b9f…0x21dd` is stored bit-inverted
+(NOT each byte; `4f0e`) as NUL-separated pieces, ending with `0xFF`. **Each
+piece is one row**, written from row 1, col 1 downward (start offset `0xa2`,
++160 bytes per row), in white on black (attribute `0x0F`). Then `4ed0`
+recolours a 58×19 area, rows 2–20 and cols 11–68, to yellow on blue
+(attribute `0x1E`, start offset `0x157`). Decoded as cp437, the rows below
+are numbered from row 1:
+
+```
+        ╔════════════════════════════════════════════════════════════╗
+        ║                                                            ║
+      ╔═╣  Paranoid is shareware.  If you continue to play Paranoid  ╠═╗
+      ║ ║  for more than its trial period of one month, you must     ║ ║
+    ╔═╣ ║  pay a £10 registration fee.  This can be in the form of   ║ ╠═╗
+    ║ ║ ║  a cheque or Postal Order made payable to Ben North; no    ║ ║ ║
+  ╔═╣ ║ ║  cash, postage stamps, or credit cards please.  The Bit    ║ ║ ╠═╗
+  ║ ║ ║ ║  Bucket Brothers can be contacted at                       ║ ║ ║ ║
+╔═╣ ║ ║ ║                                                            ║ ║ ║ ╠═╗
+║ ║ ║ ║ ║             The Bit Bucket Brothers,                       ║ ║ ║ ║ ║
+║ ║ ║ ║ ║             "Amaroo", Weir Lane, Hanwood,                  ║ ║ ║ ║ ║
+║ ║ ║ ║ ║             Shrewsbury, Shropshire.  SY5 8JY.              ║ ║ ║ ║ ║
+╚═╣ ║ ║ ║                                                            ║ ║ ║ ╠═╝
+  ║ ║ ║ ║  Please mark the envelope "Paranoid".                      ║ ║ ║ ║
+  ╚═╣ ║ ║                                                            ║ ║ ╠═╝
+    ║ ║ ║  When you register this game, not only will you be free    ║ ║ ║
+    ╚═╣ ║  from guilt, you will receive a registered copy of the     ║ ╠═╝
+      ║ ║  game, another thirty levels of ball-bouncing fun, a       ║ ║
+      ╚═╣  level designer, and cut-price updates when available.     ╠═╝
+        ║                                                            ║
+        ╚════════════════════════════════════════════════════════════╝
+
+
+Press a key.
+```
+
+Regenerate it from the binary if in doubt (offset = address − 0x100).
+
+**Remake:** F10 breaks out of the main loop at once (`main.cpp` ~1073), and
+nothing is saved. Add a `STATE_EXIT` that saves the high scores (item 19),
+draws this screen with an 8×14 or 8×16 text font on a black background (the
+game fonts have no box characters, so either draw the boxes as lines or bundle
+a CP437 font), waits for a key, then closes. The window close button should
+skip the screen but still save.
+
+### [ ] 32. Bonus-letter bugs in the original (decide first)
+
+The decompiled code shows two bugs in the BONUS letters. **Ask the user
+whether to reproduce them** before changing the remake. Both the help text and
+`PARANOID.DOC` describe the intended behaviour (500 in order, otherwise 200).
+
+1. **The in-order bonus can never be awarded.** In `2a73` at `0x2adc`:
+   `cmp al,[d262]; jne +4; shl byte [d262],1; je +5; mov byte [d263],0`.
+   On the expected letter, `shl` gives a non-zero result, so the `je` isn't
+   taken and the in-order flag `0xd263` is cleared anyway. A wrong letter
+   clears it too. So after the first letter the flag is always 0, and `3ad1`
+   always awards **200** (`253f`, +500, is never reached from here).
+2. **The bonus is awarded twice.** `5e65` keeps a "last drawn letters" copy
+   **per display page** (`0xd25a` / `0xd25b`, picked by `0xd239`, which flips
+   every tick in `653b`). When the mask changes, it calls `5e83` once for each
+   page, and `5e83` awards the bonus whenever the mask is `0x1F`. So completing
+   BONUS gives the award twice: **+400 in total** in practice. It also goes
+   straight into the score digits, skipping the count-up (item 13), and each
+   award runs the extra-ball check (`5f79`).
+
+**Remake:** `HitBrick` (`main.cpp` ~353–365) awards 500 in order / 200 out of
+order, once. Options to offer the user:
+- **(a)** keep it as now (intended behaviour),
+- **(b)** match the original exactly (always 2 × 200),
+- **(c)** add a "faithful bugs" setting.
+
+Whichever is chosen, add a comment citing `0x2adc` and `5e65`.
 
 ---
 
