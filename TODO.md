@@ -749,7 +749,7 @@ call `5ee1` (points stay pending), and no extra ball happens. `snd_extra_life`
 isn't needed: `0xD3C` is the extra-life pickup sound, played through
 `play_pattern`.
 
-### [ ] 14. Fix the sound-effect mapping
+### [x] 14. Fix the sound-effect mapping
 
 The play sites in the original (`grep -n 'mov di, 0xc' PARANOID.asm`):
 
@@ -781,7 +781,15 @@ read from the binary (bat 4, walls 2, brick 3, laser hit 3, laser 4, barrier
 2, ball lost 10, level cleared 11, pickups 8, skip level 9). So every row of
 the table above now plays the original's sound, including ball lost on every
 life, the extra ball (`0xD3C` = the extra-life pickup sound) and `0xCDE`
-after a skip. Still to do: the renames and the comments in `sound.cpp`.
+after a skip.
+
+**Done:** renamed in `sound.h`: `snd_paddle` → `snd_brick` (`0xC91`),
+`snd_paddle_catch` → `snd_bat` (`0xC7C`), `snd_game_over` → `snd_ball_lost`
+(`0xCC5`), and fixed the comments in `sound.cpp`. Checked against the binary
+with a script: all 21 patterns in `sound.cpp` (the 9 fixed ones and the 12
+pickups) have the same start divisor and (ticks, delta) segments as the
+original, and the priorities in `play_pattern` are the patterns' first bytes.
+How the sounds are rendered isn't compared with the original's speaker yet.
 
 ---
 

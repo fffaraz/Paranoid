@@ -20,16 +20,17 @@
  *   by applying delta BEFORE writing samples.
  *
  * Decoded sound table addresses:
- *   0x0C7C — paddle catch (sticky)
- *   0x0C83 — wall bounce
- *   0x0C8A — top bounce
- *   0x0C91 — paddle bounce
- *   0x0C9E — laser hits brick
+ *   0x0C7C — ball hits the bat (every hit, sticky or not)
+ *   0x0C83 — side wall
+ *   0x0C8A — top wall
+ *   0x0C91 — ball bounces off a brick (any brick, including 0x1C)
+ *   0x0C9E — laser hits a brick
  *   0x0CB7 — laser fire
  *   0x0CBE — barrier bounce
- *   0x0CC5 — game over fanfare
- *   0x0CDE — level complete fanfare
- *   0x0CF7..0x0D77 — 12 powerup pickup sounds, indexed by pickup type
+ *   0x0CC5 — last ball lost (every life)
+ *   0x0CDE — level cleared
+ *   0x0CF7..0x0D77 — 12 powerup pickup sounds, indexed by pickup type;
+ *                    0x0D3C (extra life) is also the extra-ball sound
  */
 
 constexpr float PIT_CLOCK = 1193182.0f;
@@ -99,32 +100,32 @@ void load_sounds(Sounds& sounds)
     InitAudioDevice();
     const int sr = 44100;
 
-    // 0x0C83 — Wall bounce: div=840 (1420 Hz), 5 ticks steady
+    // 0x0C83 — Side wall: div=840 (1420 Hz), 5 ticks steady
     {
         const int segs[][3] = { { 840, 0, 5 } };
         sounds.snd_bounce = MakePCSound(sr, segs, 1);
     }
 
-    // 0x0C8A — Top bounce: div=700 (1705 Hz), 5 ticks steady
+    // 0x0C8A — Top wall: div=700 (1705 Hz), 5 ticks steady
     {
         const int segs[][3] = { { 700, 0, 5 } };
         sounds.snd_top_bounce = MakePCSound(sr, segs, 1);
     }
 
-    // 0x0C91 — Paddle bounce: 1575 (758 Hz) × 2t, +525 → 2100 (568 Hz) × 3t
+    // 0x0C91 — Brick bounce: 1575 (758 Hz) × 2t, +525 → 2100 (568 Hz) × 3t
     {
         const int segs[][3] = {
             { 1575, 0, 2 }, // 2 ticks at 758 Hz
             { 0, 525, 1 }, // delta applied → 568 Hz, 1 tick
             { 0, 0, 2 } // 2 more ticks at 568 Hz
         };
-        sounds.snd_paddle = MakePCSound(sr, segs, 3);
+        sounds.snd_brick = MakePCSound(sr, segs, 3);
     }
 
-    // 0x0C7C — Sticky paddle catch: div=1050 (1136 Hz), 5 ticks steady
+    // 0x0C7C — Ball hits the bat: div=1050 (1136 Hz), 5 ticks steady
     {
         const int segs[][3] = { { 1050, 0, 5 } };
-        sounds.snd_paddle_catch = MakePCSound(sr, segs, 1);
+        sounds.snd_bat = MakePCSound(sr, segs, 1);
     }
 
     // Pickup patterns from the pointer table at 0x0C64 in PARANOID.COM.
@@ -183,7 +184,7 @@ void load_sounds(Sounds& sounds)
         sounds.snd_barrier = MakePCSound(sr, segs, 1);
     }
 
-    /* 0x0CDE — Level complete fanfare:
+    /* 0x0CDE — Level cleared:
      * div=2000, descending sweeps with reset jumps */
     {
         const int segs[][3] = {
@@ -198,7 +199,7 @@ void load_sounds(Sounds& sounds)
         sounds.snd_level_complete = MakePCSound(sr, segs, 7);
     }
 
-    /* 0x0CC5 — Game-over fanfare:
+    /* 0x0CC5 — Last ball lost (played on every life, not only at game over):
      * div=2000, ascending sweeps with reset drops (mirror image of 0x0CDE) */
     {
         const int segs[][3] = {
@@ -210,7 +211,7 @@ void load_sounds(Sounds& sounds)
             { 0, -300, 1 },
             { 0, 20, 30 }
         };
-        sounds.snd_game_over = MakePCSound(sr, segs, 7);
+        sounds.snd_ball_lost = MakePCSound(sr, segs, 7);
     }
 }
 
@@ -239,7 +240,7 @@ void play_pattern(Sounds& sounds, uint16_t pattern)
     }
     switch (pattern) {
     case 0xc7c: // ball hits the bat
-        play_sound(sounds, sounds.snd_paddle_catch, 4);
+        play_sound(sounds, sounds.snd_bat, 4);
         break;
     case 0xc83: // side wall
         play_sound(sounds, sounds.snd_bounce, 2);
@@ -248,7 +249,7 @@ void play_pattern(Sounds& sounds, uint16_t pattern)
         play_sound(sounds, sounds.snd_top_bounce, 2);
         break;
     case 0xc91: // brick bounce
-        play_sound(sounds, sounds.snd_paddle, 3);
+        play_sound(sounds, sounds.snd_brick, 3);
         break;
     case 0xc9e: // laser hits a brick
         play_sound(sounds, sounds.snd_laser_hit, 3);
@@ -260,7 +261,7 @@ void play_pattern(Sounds& sounds, uint16_t pattern)
         play_sound(sounds, sounds.snd_barrier, 2);
         break;
     case 0xcc5: // last ball lost
-        play_sound(sounds, sounds.snd_game_over, 10);
+        play_sound(sounds, sounds.snd_ball_lost, 10);
         break;
     case 0xcde: // level cleared
         play_sound(sounds, sounds.snd_level_complete, 11);
