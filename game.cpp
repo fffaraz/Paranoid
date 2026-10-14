@@ -104,6 +104,7 @@ int BiosKey()
         case KEY_CAPS_LOCK:
         case KEY_NUM_LOCK:
         case KEY_SCROLL_LOCK:
+        case KEY_F11: // the remake's screen-shape key, see main.cpp
             continue;
         default:
             return key;

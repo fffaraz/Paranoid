@@ -47,9 +47,12 @@ Decided by the user:
 - **The F10 exit screen (item 31) uses the game's own 8x14 font**, with the
   box borders drawn as double lines; no CP437 font is bundled.
 
+- **The window shows the 4:3 picture by default** (V7), as the EGA screen
+  looked on a 4:3 monitor; `--square-pixels` and the F11 key switch to
+  square pixels.
+
 **Still open — ask the user before choosing, and don't pick a default:**
-- Defaults for the display: 4:3 aspect on or off (V7). The tick rate is
-  70 Hz either way; that is what the reference traces use.
+nothing at the moment.
 
 ## How to do Part A
 
@@ -383,7 +386,7 @@ items are only done when their screens match.
   sample by sample isn't the goal; matching the timing in ticks at 70 Hz and
   the PIT divisors is.
 
-### [ ] V7. Aspect ratio of the window
+### [x] V7. Aspect ratio of the window
 
 EGA 640×350 was shown on a 4:3 monitor, so each pixel was about 1.37 times
 taller than wide. The remake scales x and y equally (`main.cpp` ~177), so
@@ -391,6 +394,16 @@ everything looks flatter than on the original. Draw the 640×350 texture into
 the largest 4:3 rectangle that fits the window (for example 640×480 at 1×).
 Make it switchable (a key and a command-line flag) for anyone who wants square
 pixels. Screenshot comparisons (V5) always use the raw 640×350 texture.
+
+**Done** (4:3 by default, the user's decision). `main.cpp` draws the
+640×350 texture into the largest 4:3 rectangle that fits the window; the
+window opens at 960×720 (1.5 × 640×480). `--square-pixels` (listed in the
+bad-switch help text) starts with square pixels and a 1280×700 window, and
+F11 switches while running; F11 isn't counted as a key by the game
+(`BiosKey`). The game logic and every comparison still use the raw 640×350
+picture. Checked by grabbing the remake's window in both modes: the 4:3
+picture fills 960×720 and the 8×6 ball is round; with square pixels it is
+as before. Not checked with a person pressing F11.
 
 ---
 

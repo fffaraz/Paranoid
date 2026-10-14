@@ -60,7 +60,8 @@ static int BadSwitch()
            "    /V - skip video mode auto-detect\n"
            "    /K llrraa - use alternative control keys\n"
            "    /L n - start at level n (this remake only)\n"
-           "    --fix-bugs - fix the original's bugs (this remake only)\n\n"
+           "    --fix-bugs - fix the original's bugs (this remake only)\n"
+           "    --square-pixels - square pixels, not the 4:3 screen (F11 switches)\n\n"
            "See Paranoid.DOC for details.\n");
     return 1;
 }
@@ -110,6 +111,7 @@ int main(int argc, char* argv[])
     const char* trace_path = nullptr;
     int starting_level = 1; // remake addition: /L n
     bool fix_bugs = false; // remake addition: the original's bugs are kept unless asked
+    bool square_pixels = false; // remake addition: the 4:3 screen unless asked (TODO V7)
     // The remake's own options come out first; the rest is joined into a
     // DOS command tail for the original's switches.
     std::string tail;
@@ -122,6 +124,8 @@ int main(int argc, char* argv[])
             starting_level = level;
         } else if (strcmp(arg, "--fix-bugs") == 0) {
             fix_bugs = true;
+        } else if (strcmp(arg, "--square-pixels") == 0) {
+            square_pixels = true;
         } else if (strcmp(arg, "--replay") == 0 && i + 1 < argc) {
             replay_path = argv[++i];
         } else if (strcmp(arg, "--trace") == 0 && i + 1 < argc) {
@@ -144,7 +148,11 @@ int main(int argc, char* argv[])
     }
 
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    InitWindow(1280, 700, "Paranoid");
+    // 1.5 times 640x480 for the 4:3 screen, twice 640x350 for square pixels.
+    if (square_pixels)
+        InitWindow(1280, 700, "Paranoid");
+    else
+        InitWindow(960, 720, "Paranoid");
     // Escape belongs to the game (it ends a game), not to raylib.
     SetExitKey(KEY_NULL);
     SetWindowMinSize(640, 350);
@@ -213,6 +221,10 @@ int main(int argc, char* argv[])
         }
 
         const float dt = GetFrameTime();
+        // Remake addition: F11 switches between the 4:3 screen and square
+        // pixels (game.cpp doesn't count it as a key).
+        if (IsKeyPressed(KEY_F11))
+            square_pixels = !square_pixels;
 
         // The attract loop (3c38) alternates demo levels and the high-score
         // screen. The key that ends one goes to the dispatcher (3c55/3c75):
@@ -341,13 +353,16 @@ int main(int argc, char* argv[])
 
         BeginDrawing();
         ClearBackground(BLACK);
-        float scale = fminf(GetScreenWidth() / 640.0f, GetScreenHeight() / 350.0f);
-        Rectangle destination = {
-            (GetScreenWidth() - 640.0f * scale) / 2.0f,
-            (GetScreenHeight() - 350.0f * scale) / 2.0f,
-            640.0f * scale,
-            350.0f * scale
-        };
+        // The EGA screen was 640x350 on a 4:3 monitor, so its pixels were
+        // about 1.37 times taller than wide (TODO V7). Fit that shape, or
+        // square pixels, into the window.
+        const float aspect = square_pixels ? 640.0f / 350.0f : 4.0f / 3.0f;
+        float width = (float)GetScreenWidth(), height = width / aspect;
+        if (height > GetScreenHeight()) {
+            height = (float)GetScreenHeight();
+            width = height * aspect;
+        }
+        Rectangle destination = { (GetScreenWidth() - width) / 2.0f, (GetScreenHeight() - height) / 2.0f, width, height };
         DrawTexturePro(game_screen.texture, { 0, 0, 640, -350 }, destination, { 0, 0 }, 0, WHITE);
         EndDrawing();
     }

@@ -10,7 +10,7 @@ The plan below (Steps 0–5) is **done**. Start at "After Step 5" at the end.
 
 - `TODO.md` lists every known difference from the original (items 1–33 plus
   verification items V1–V7), with addresses in the disassembly. Ticked so
-  far: 1, 4, 6, 12, 14–27, 30–33, V1, V2.
+  far: 1, 4, 6, 12, 14–27, 30–33, V1, V2, V7.
 - The game runs on `sim.cpp`, a literal port of the original's simulation
   whose state is the original's memory. `game.cpp` is the play flow at 70
   ticks per second; `draw.cpp` draws from that memory.
@@ -192,9 +192,8 @@ confirms and what needs play traces.
    and 32 were matched pixel for pixel, 17, 19, 24 and 32 with patched
    scratch copies of the original's files (see their notes).
 4. What is left besides play traces: V4's play-trace replay (with V3), V5
-   (a `--screenshot` option and stored reference screens), V6 (sound) and
-   V7 (aspect ratio). **Ask** the one decision still open in `TODO.md`
-   before V7: the 4:3 display default.
+   (a `--screenshot` option and stored reference screens) and V6 (sound).
+   V7 is done (4:3 by default). No decision is open at the moment.
 
 ## Facts learned this session that aren't obvious
 
