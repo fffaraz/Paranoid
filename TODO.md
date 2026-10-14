@@ -2,11 +2,14 @@
 
 This list compares the remake (`main.cpp`, `sound.cpp`) with the original game's
 disassembly (`paranoid-v1.8/PARANOID.asm`, a radare2 dump of `PARANOID.COM`).
-Each item can be done on its own. Work through them roughly in order: the items
-in Part A change the simulation timing that later items rely on.
+Each item can be done on its own. Work through them roughly in order. **Part 0**
+sets up comparison against the real game in DOSBox-X (installed at
+`/usr/bin/dosbox-x`, version 2026.10.01, debugger built in); do it first. The
+items in Part A change the simulation timing that later items rely on.
 
-When an item is done, tick its box, build, and play the affected part of the
-game to check it.
+When an item is done, tick its box, build, and check it: run the matching
+trace or screenshot comparison from Part 0 where there is one, otherwise play
+the affected part of the game.
 
 ---
 
@@ -94,6 +97,179 @@ game 39b2: init 39f3 (level 1, score 0, lives 3)
      result 1 (cleared)    → level++; if > 30 → 3caf ending → 4882; else 38b7 wait 30 ticks → level
      result 2 (Escape)     → return to the attract loop
 ```
+
+---
+
+## Part 0 — verification against the original in DOSBox-X
+
+The original is fully deterministic. It never reads the timer, never uses
+random numbers and never changes the palette; the only `int 10h` calls set the
+video mode and the text cursor. Each tick depends only on the previous state
+and the keys held. So an exact port must reproduce the original's memory
+**tick for tick**, and these items make that checkable.
+
+Put the tools under `tools/` and the reference data under `tests/reference/`.
+Add the DOSBox-X output folders to `.gitignore`.
+
+### [ ] V1. DOSBox-X setup for the original
+
+Create `tools/dosbox/paranoid.conf` and start it with
+`dosbox-x -conf tools/dosbox/paranoid.conf`. Use `-fastlaunch`, and
+`-set "section property=value"` for one-off overrides. Settings:
+
+- `[dosbox] machine = svga_s3`. Mode 0x10 then runs at **70 Hz**, the rate
+  the TODO assumes. A real EGA card runs at 60 Hz; don't use `machine=ega`
+  for the reference data.
+- `[cpu] core = normal`, `cycles = max` or a fixed high value such as 30000.
+  The game waits for vertical retrace each tick, so extra speed doesn't
+  change the logic. It only has to be fast enough never to miss a frame.
+- `[render] aspect = false`, so screenshots are the raw 640×350 picture.
+- `[dosbox] captures = <absolute path>/tests/capture`.
+- `[autoexec]`: copy `paranoid-v1.8/*` into a scratch folder first and mount
+  **that**, not the repo folder. The game writes `HiScores.PAR`, and each run
+  should start from the default table. Then `c:` and `PARTRACE` (V2) or
+  `PARANOID`.
+
+Wrap it in `tools/run_original.sh [--trace] [--keep-hiscores]`, which makes
+the scratch copy, runs DOSBox-X, and copies `TRACE.BIN` and the captures back
+to `tests/capture/`.
+
+**Accept:** one command starts the original, and closing it leaves the repo
+unchanged except for `tests/capture/`.
+
+### [ ] V2. Trace build of the original (`PARTRACE.COM`)
+
+Write `tools/make_trace_com.py`. It reads `PARANOID.COM` and writes a patched
+`PARTRACE.COM` that saves a snapshot of the game state once per tick.
+
+- **Where to hook.** The game loops call `653b` (page flip + wait for
+  retrace) exactly once per tick, at the end of the update:
+  - play loop `3658`: the `call 653b` at **`0x36b5`** (bytes `e8 83 2e`),
+  - demo loop `3bbd`: the `call 653b` at **`0x3bff`** (bytes `e8 39 29`).
+
+  Change each to a `call` into a stub, and have the stub write the snapshot
+  and then `jmp 653b`. Use two entry points so the record says which loop it
+  came from (1 = play, 2 = demo). Check the original bytes before patching and
+  fail if they differ.
+- **Where the stub goes.** The file ends at `0x66be` (26046 bytes), so append
+  the stub there. First check nothing uses `0x66be…0x6800`: grep the asm and
+  `PARANOID.c` for addresses in that range (`0x6701` shows up once; work out
+  what it is). Also check how far the stack grows down towards it (look at
+  where SP is set, around `4882`). If the space isn't safe, use a real
+  free gap instead.
+- **The stub.** Save all registers and flags. On the first call, create
+  `TRACE.BIN` (`int 21h` AH=3Ch) and keep the handle in the stub's own data.
+  Each call writes one record (AH=40h). Every 64 records, flush by duplicating
+  the handle (AH=45h) and closing the copy (AH=3Eh), so data survives if
+  DOSBox-X is closed. DOS closes the main handle when the game exits through
+  F10 (`int 21h` AX=4C00h).
+- **Record format** (little-endian, fixed size; write it up in
+  `tools/TRACE_FORMAT.md`):
+
+  | Field | Source | Bytes |
+  |---|---|---|
+  | magic `'PT'`, loop id, tick counter (u32, kept by the stub) | — | 8 |
+  | ball table | `0xc16d` | 256 |
+  | icons | `0xc2cd` | 45 |
+  | lasers | `0xc30e` | 64 |
+  | flash queue count + entries | `0xd235`, `0xcf17` | 1 + 798 |
+  | game variables | `0xd237…0xd3b0` | 378 |
+  | key states | `0xd42a…0xd42f` | 6 |
+  | bricks + icon attributes | `0x8100`, `0x820a` | 266 + 266 |
+
+  The game variables cover the bat, level, lives, counters, score digits and
+  letters. Leave out the page variables `0xd237`/`0xd239` when comparing,
+  because the remake has no display pages.
+- Also write `tools/trace_dump.py TRACE.BIN [--tick N] [--field name]`, which
+  prints records with field names from the RAM map in this file.
+
+**Accept:** running the demo for one full cycle (10 demo levels) gives a
+`TRACE.BIN` in which the ball positions change by dx/dy each tick and the
+level byte follows `2,5,6,9,10,7,4,3,1,8`.
+
+### [ ] V3. Reference traces
+
+Record and commit small reference traces under `tests/reference/` (or
+compress them; each tick is about 2 KB):
+
+1. **`demo.trace`**: start, press nothing, let the attract loop run the 10
+   demo levels. No keys are pressed, so this is identical on every run, and it
+   is the main test.
+2. **`play_level1.trace`**, **`play_powerups.trace`**: a human plays the
+   original with `PARTRACE`. Key states are in every record, so the remake can
+   replay them exactly (V4) even though the human pressed keys at random
+   moments. Pick levels with many icons; play long enough to catch every icon
+   type, lose a life, and clear a level.
+
+Write down how each trace was made (command, levels, what happened) in
+`tests/reference/README.md`.
+
+### [ ] V4. Trace and replay modes in the remake
+
+- `--trace out.bin` writes a record in the **same format** after every
+  simulated tick of the play and demo loops (the same moment as the patched
+  `call 653b`). Fill it by converting the remake's state to the original's
+  layout (a `ToOriginalRam()` helper). Doing this on top of item 1's literal
+  port is easiest.
+- `--replay ref.trace` runs headless without a window, or with
+  `SetTargetFPS(0)`. It takes the key states for each tick from the reference
+  records, starting at the same point (the first game-start record; for the
+  demo, the first demo record), and writes its own trace.
+- `tools/trace_diff.py ref.trace ours.trace` reports the **first** differing
+  tick, the fields that differ (by RAM-map name) and a few ticks of context.
+  Return non-zero on a mismatch so it can run in CI.
+- Add a CTest test that replays `demo.trace` and compares. Expect it to fail
+  until Part A is done; mark it `WILL_FAIL` or skip it until then, but keep it
+  in the build.
+
+**Accept:** `trace_diff` on `demo.trace` reports the first difference and
+names the field.
+
+### [ ] V5. Screenshot comparison
+
+- In DOSBox-X, take screenshots from the **Capture** menu (its hotkey is shown
+  there). They land in the `captures` folder from V1 as 640×350 PNGs. Save
+  references in `tests/reference/screens/`:
+  - title
+  - demo play with the side panel
+  - high-score table
+  - the five F1 pages
+  - "Level 01"
+  - in-game with each bat width / laser / barrier / icons
+  - "Game Over"
+  - the New High Score message and name entry
+  - the exit registration screen (from a text-mode capture)
+- Add `--screenshot NAME out.png` to the remake. It puts the game into the
+  named state (for example `title`, `info3`, `level:5:tick:200` together with
+  a replay), renders one frame to the 640×350 texture and saves it with
+  `ExportImage`.
+- `tools/screen_diff.py ref.png ours.png` reports the number of different
+  pixels and writes a highlight image. Use Pillow, or ImageMagick
+  `compare -metric AE`.
+
+**Accept:** every static screen (title boxes, help pages, side panel,
+high-score layout) matches to 0 different pixels. Item 30 and the help-page
+items are only done when their screens match.
+
+### [ ] V6. Sound comparison
+
+- Record the original's PC speaker with the **Capture** menu's WAV recording.
+  Trigger each effect: wall, top, bat, brick, laser, laser hit, barrier, each
+  pickup, ball lost, level complete, extra ball.
+- Add `--dump-sounds dir/` to the remake, writing each `Sounds` entry as a WAV
+  (`ExportWave`).
+- Compare each effect's length and pitch sequence. Matching the waveform
+  sample by sample isn't the goal; matching the timing in ticks at 70 Hz and
+  the PIT divisors is.
+
+### [ ] V7. Aspect ratio of the window
+
+EGA 640×350 was shown on a 4:3 monitor, so each pixel was about 1.37 times
+taller than wide. The remake scales x and y equally (`main.cpp` ~1163), so
+everything looks flatter than on the original. Draw the 640×350 texture into
+the largest 4:3 rectangle that fits the window (for example 640×480 at 1×).
+Make it switchable (a key and a command-line flag) for anyone who wants square
+pixels. Screenshot comparisons (V5) always use the raw 640×350 texture.
 
 ---
 
