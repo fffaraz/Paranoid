@@ -12,7 +12,8 @@
 
 enum GameState { STATE_TITLE,
     STATE_INFO,
-    STATE_PLAY };
+    STATE_PLAY,
+    STATE_HISCORES }; // the attract loop's high-score screen (4ba7)
 
 // A message shown in the play state (44ac).
 enum class Message { None,
@@ -52,3 +53,10 @@ Message CurrentMessage(int& step);
 Message MessageBelow();
 // While a name is typed into the high-score table: its rank (1..10); else 0.
 int NameEntryRank();
+
+// The high-score screen with its bouncing balls (4ba7). UpdateHighScoreScreen
+// returns 0 while it goes on, the raylib key that ended it, or -1 after its
+// 1024 ticks.
+void StartHighScoreScreen();
+int UpdateHighScoreScreen(float dt);
+bool HighScoreBallsShown();

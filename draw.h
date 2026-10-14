@@ -36,6 +36,8 @@ void DrawNewHighScore(int step);
 // typed on row `rank` (1..10).
 void DrawHighScoreTable();
 void DrawNameInput(int rank);
+// The attract loop's high-score screen (4ba7): the table and the balls.
+void DrawHighScoreScreen(bool balls);
 
 void DrawTitleScreen(void);
 struct PlayView;

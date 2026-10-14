@@ -997,11 +997,7 @@ level 1, 1070, the old 9th entry moved to 10th); and the original's first
 attract frame after Enter equals the remake's table with the stored name.
 Also checked: a missing file is created with exactly the default table.
 
-### [ ] 20. High-score screen in the attract loop ("BEST BALL BOUNCERS")
-
-**Progress (item 19):** the static screen is done and matches the original
-pixel for pixel: `DrawHighScoreTable` in `draw.cpp` (`4a3a`). Still to do:
-the bouncing balls and the attract loop.
+### [x] 20. High-score screen in the attract loop ("BEST BALL BOUNCERS")
 
 **Original (`4ba7` → `4a3a` + `4abd`):**
 - Draws the table (item 19).
@@ -1020,6 +1016,22 @@ the bouncing balls and the attract loop.
   the rectangles at `0x713` = (48,38)–(591,85) and `0x71b` = (152,112)–(487,311),
   using the box rules in `2ed7`.
 - Lasts 1024 ticks or until a key. The key goes to the dispatcher (item 21).
+
+**Done:** `STATE_HISCORES`. `sim.cpp` has `SimHighScoreBallsStart` (`4abd`:
+`375b`, then the 8 balls of `0x723` through `3933`) and
+`SimHighScoreBallsTick` (`4b19`: the phase, then `3235` → `31b4`, which
+moves a ball like `2d3e` and calls `3109` and `2ed7` for both boxes). The
+balls live in the game's ball table and use the shared phase, as in the
+original. `game.cpp` shows the table alone for one tick (`4ba7`'s flip),
+then up to 1024 ball ticks; a key ends it after a move. It now follows
+Escape, the name entry and a score that doesn't make the table, as the
+original's attract loop starts with it after a game. Until item 21, the key
+that ends it is handled in `main.cpp`: Space starts a game, F1 opens the
+info screen, anything else or the end goes to the title. Checked against
+the original (`tools/grab_original.sh`, the screen after the first demo
+level, with the phase the demo trace ends on): all 37 grabs of the screen
+are pixel-identical to the remake's frames for ticks 0, 15, 31, ... 567,
+which include 115 wall bounces and 114 box bounces.
 
 ### [ ] 21. Demo (attract) mode and the main menu loop
 

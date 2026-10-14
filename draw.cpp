@@ -131,6 +131,22 @@ void DrawTextEGALarge(const char* text, int x, int y, Color tint)
     }
 }
 
+// Balls (564a): the 8x6 sprite at 0xa53, top-left at (x, y), rows below
+// y = 337 cut off.
+static void DrawBalls()
+{
+    static const struct {
+        int left, width;
+    } ball_rows[6] = { { 2, 4 }, { 1, 6 }, { 0, 8 }, { 0, 8 }, { 1, 6 }, { 2, 4 } };
+    for (uint16_t i = addr::BALLS; i < addr::BALLS + 16 * 16; i += 16) {
+        if (!(orig.b(i + BALL_FLAGS) & BALL_ACTIVE))
+            continue;
+        int x = int16_t(orig.w(i + BALL_X)), y = int16_t(orig.w(i + BALL_Y));
+        for (int row = 0; row < 6 && y + row <= 337; row++)
+            DrawRectangle(x + ball_rows[row].left, y + row, ball_rows[row].width, 1, WHITE);
+    }
+}
+
 // Lines with inclusive ends, as the original's 419c and 4274 draw them.
 static void HLine(int x1, int x2, int y, int colour)
 {
@@ -309,6 +325,13 @@ void DrawHighScoreTable()
     }
 }
 
+void DrawHighScoreScreen(bool balls)
+{
+    DrawHighScoreTable();
+    if (balls)
+        DrawBalls();
+}
+
 void DrawNameInput(int rank)
 {
     // 48c0 / 4f7f: the typed characters in yellow on the rank's row, and the
@@ -464,18 +487,7 @@ void DrawPlay(const PlayView& view)
                 DrawRectangle(x, top, 3, y + 8 - top, EGA_PALETTE[14]);
         }
 
-        // Balls (564a): the 8x6 sprite at 0xa53, top-left at (x, y), rows below
-        // y = 337 cut off.
-        static const struct {
-            int left, width;
-        } ball_rows[6] = { { 2, 4 }, { 1, 6 }, { 0, 8 }, { 0, 8 }, { 1, 6 }, { 2, 4 } };
-        for (uint16_t i = addr::BALLS; i < addr::BALLS + 16 * 16; i += 16) {
-            if (!(orig.b(i + BALL_FLAGS) & BALL_ACTIVE))
-                continue;
-            int x = int16_t(orig.w(i + BALL_X)), y = int16_t(orig.w(i + BALL_Y));
-            for (int row = 0; row < 6 && y + row <= 337; row++)
-                DrawRectangle(x + ball_rows[row].left, y + row, ball_rows[row].width, 1, WHITE);
-        }
+        DrawBalls();
     }
 
     DrawTextEGA("SCORE", 548, 23, BLACK);

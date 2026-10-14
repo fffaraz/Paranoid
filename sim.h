@@ -135,6 +135,12 @@ bool SimSettleStep(OrigState& s, int& step); // step starts at 0
 bool SimLoseLife(OrigState& s); // false when no lives are left
 bool SimNextLevel(OrigState& s); // false after level 30
 
+// The high-score screen's 8 bouncing balls (4abd), in the ball table. Then
+// one SimHighScoreBallsTick and SimFlipPage per tick, 1024 ticks or until a
+// key.
+void SimHighScoreBallsStart(OrigState& s);
+void SimHighScoreBallsTick(OrigState& s);
+
 // High-score table (4882). SimEnterHighScore puts the score and level into
 // the table and returns the rank, 1..10, or 11 if the score doesn't qualify
 // (4945). The name is then typed into the buffer at NAME_INPUT:

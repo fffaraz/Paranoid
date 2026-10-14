@@ -1075,6 +1075,110 @@ void NextPhase(OrigState& s)
         s.b(PHASE) = 0;
 }
 
+// 3109: the high-score screen's balls stay inside x 16..615, y 12..332.
+void fcn_3109_screen_walls(OrigState& s, uint8_t i)
+{
+    uint16_t b = BallAddr(i);
+    if (s.w(b + BALL_X) < 0x10) {
+        s.set_w(b + BALL_X, 0x10);
+        s.set_w(b + BALL_DX, uint16_t(-s.w(b + BALL_DX)));
+    } else if (s.w(b + BALL_X) > 0x267) {
+        s.set_w(b + BALL_X, 0x267);
+        s.set_w(b + BALL_DX, uint16_t(-s.w(b + BALL_DX)));
+    }
+    if (s.w(b + BALL_Y) < 0x0c) {
+        s.set_w(b + BALL_Y, 0x0c);
+        s.set_w(b + BALL_DY, uint16_t(-s.w(b + BALL_DY)));
+    } else if (s.w(b + BALL_Y) > 0x14c) {
+        s.set_w(b + BALL_Y, 0x14c);
+        s.set_w(b + BALL_DY, uint16_t(-s.w(b + BALL_DY)));
+    }
+}
+
+// 2ed7: bounce a ball off the box (x1, y1)-(x2, y2), with the same side and
+// corner rules as the bricks (2693). The ball ends up just outside the box.
+void fcn_2ed7_box(OrigState& s, uint8_t i, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
+{
+    uint16_t b = BallAddr(i);
+    const uint16_t x = s.w(b + BALL_X), y = s.w(b + BALL_Y);
+    if (uint16_t(x + 8) < x1 || x > x2 || uint16_t(y + 6) < y1 || y > y2)
+        return;
+    // 0: left of the box, 1: inside its x range, 2: right of it; the same for y.
+    s.b(SIDE_X) = 0;
+    s.b(SIDE_Y) = 0;
+    if (x >= x1) {
+        s.b(SIDE_X)++;
+        if (uint16_t(x + 7) >= x2)
+            s.b(SIDE_X)++;
+    }
+    if (y >= y1) {
+        s.b(SIDE_Y)++;
+        if (uint16_t(y + 5) >= y2)
+            s.b(SIDE_Y)++;
+    }
+    bool bounce_x;
+    if (s.b(SIDE_X) == 1) {
+        bounce_x = false;
+    } else if (s.b(SIDE_Y) == 1) {
+        bounce_x = true;
+    } else {
+        s.b(SIDES) = uint8_t((s.b(SIDE_X) == 0 ? 2 : 0) + (s.b(SIDE_Y) == 0 ? 1 : 0));
+        s.b(DIRECTION) = uint8_t((int16_t(s.w(b + BALL_DX)) < 0 ? 2 : 0) + (int16_t(s.w(b + BALL_DY)) < 0 ? 1 : 0));
+        const uint8_t axis = T_B5A[(s.b(SIDES) * 4 + s.b(DIRECTION)) & 0x0f];
+        if (axis == 1) {
+            bounce_x = true;
+        } else if (axis == 2) {
+            bounce_x = false;
+        } else {
+            // Corner hit head-on: compare the ball's offset from the corner.
+            const uint8_t sides = s.b(SIDES);
+            uint8_t in_x = uint8_t(x - ((sides & 2) ? x1 : x2) + 7);
+            uint8_t in_y = uint8_t(y - ((sides & 1) ? y1 : y2) + 5);
+            if (in_y >= 2)
+                in_y++;
+            if (in_y >= 5)
+                in_y++;
+            switch (sides) {
+            case 0:
+                bounce_x = in_x >= in_y;
+                break;
+            case 1:
+                bounce_x = !(uint8_t(7 - in_x) > in_y);
+                break;
+            case 2:
+                bounce_x = uint8_t(7 - in_x) > in_y;
+                break;
+            default:
+                bounce_x = !(in_x >= in_y);
+                break;
+            }
+        }
+    }
+    if (bounce_x) {
+        s.set_w(b + BALL_X, s.b(SIDE_X) == 0 ? uint16_t(x1 - 8) : uint16_t(x2 + 1));
+        s.set_w(b + BALL_DX, uint16_t(-s.w(b + BALL_DX)));
+    } else {
+        s.set_w(b + BALL_Y, s.b(SIDE_Y) == 0 ? uint16_t(y1 - 6) : uint16_t(y2 + 1));
+        s.set_w(b + BALL_DY, uint16_t(-s.w(b + BALL_DY)));
+    }
+}
+
+// 31b4: move one of the high-score screen's balls, as 2d3e moves game balls.
+void fcn_31b4_move_screen_ball(OrigState& s, uint8_t i)
+{
+    s.b(MOVE_BALL) = i;
+    uint16_t b = BallAddr(i);
+    uint16_t x = uint16_t(s.w(b + BALL_X) + s.w(b + BALL_DX));
+    uint16_t y = uint16_t(s.w(b + BALL_Y) + s.w(b + BALL_DY));
+    if (s.b(PHASE) < s.w(b + BALL_COUNTER))
+        y = uint16_t(y + (int16_t(s.w(b + BALL_DY)) < 0 ? -1 : 1));
+    s.set_w(b + BALL_X, x);
+    s.set_w(b + BALL_Y, y);
+    fcn_3109_screen_walls(s, i);
+    fcn_2ed7_box(s, i, 48, 38, 591, 85); // 0x713, the title box
+    fcn_2ed7_box(s, i, 152, 112, 487, 311); // 0x71b, the table box
+}
+
 } // namespace
 
 void SimInit(OrigState& s, const std::array<Level, LEVEL_COUNT>& levels)
@@ -1271,6 +1375,29 @@ bool SimNextLevel(OrigState& s)
 {
     // 39cd
     return ++s.b(LEVEL) <= 30;
+}
+
+void SimHighScoreBallsStart(OrigState& s)
+{
+    // 4abd: 375b, then 4aea starts the 8 balls of table 0x723
+    // (counter, dy, dx, y, x).
+    static const int16_t balls[8][5] = {
+        { 0, -2, -2, 125, 50 }, { 1, -2, -3, 220, 100 }, { 2, -2, -2, 320, 270 }, { 0, -2, -3, 305, 500 },
+        { 1, -2, 2, 180, 600 }, { 2, 2, 3, 115, 570 }, { 0, 2, -1, 45, 610 }, { 1, 2, 2, 30, 190 }
+    };
+    fcn_375b_clear_balls(s);
+    for (const auto& ball : balls)
+        fcn_3933_spawn_ball(s, uint16_t(ball[4]), uint16_t(ball[3]), uint16_t(ball[2]), uint16_t(ball[1]), uint16_t(ball[0]), BALL_ACTIVE);
+}
+
+void SimHighScoreBallsTick(OrigState& s)
+{
+    // 4b19 without the drawing: the phase, then 3235 moves every ball.
+    NextPhase(s);
+    for (uint8_t i = 0; i < 16; i++) {
+        if (s.b(BallAddr(i) + BALL_FLAGS) & BALL_ACTIVE)
+            fcn_31b4_move_screen_ball(s, i);
+    }
 }
 
 int SimEnterHighScore(OrigState& s)

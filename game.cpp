@@ -46,6 +46,10 @@ Message message_below = Message::None; // a finished message still on screen
 int message_step = 0; // ticks since the message phase started
 int message_lead = 0; // ticks before the message's box starts
 int hiscore_rank = 0; // the row being named
+int hiscore_ticks = 0; // ticks of the high-score screen: 1 shows the table, then 1 per ball move
+int hiscore_key = 0; // the key that ends the high-score screen
+
+constexpr int HISCORE_BALL_TICKS = 1024; // 4abd
 int settle_step = 0;
 PlayResult result = PlayResult::Playing;
 float tick_time = 0.0f;
@@ -87,14 +91,21 @@ bool MessageFinished()
     return spec.wait_ticks > 0 && message_step >= shown + spec.wait_ticks;
 }
 
+// After a game the original's attract loop starts with the high-score screen
+// (3c38 -> 4ba7).
+void GoToHighScores()
+{
+    StartHighScoreScreen();
+    state = STATE_HISCORES;
+}
+
 // 4882, after "Game Over" or the ending: a score that makes the table gets
 // the "New High Score" message and the name entry.
 void CheckHighScore()
 {
     hiscore_rank = SimEnterHighScore(orig);
     if (hiscore_rank == 11) {
-        // TODO item 20: the attract loop's high-score screen comes next.
-        state = STATE_TITLE;
+        GoToHighScores();
         return;
     }
     ShowMessage(Message::NewHighScore, 0);
@@ -148,7 +159,7 @@ void EndOfPlay()
 {
     switch (result) {
     case PlayResult::Escape:
-        state = STATE_TITLE;
+        GoToHighScores();
         break;
     case PlayResult::LevelCleared:
         if (!SimNextLevel(orig)) {
@@ -311,8 +322,7 @@ void UpdatePlay(float dt)
         if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
             SimStoreName(orig, hiscore_rank);
             SaveTable(); // 34d7
-            // TODO item 20: the attract loop's high-score screen comes next.
-            state = STATE_TITLE;
+            GoToHighScores();
         }
         return;
     }
@@ -328,4 +338,41 @@ void UpdatePlay(float dt)
         tick_time -= 1.0f / TICK_HZ;
         Tick();
     }
+}
+
+void StartHighScoreScreen()
+{
+    // 4ba7: 4a3a draws the table (shown after one tick), then 4abd starts the
+    // balls. 3c47 has flushed the keyboard.
+    SimHighScoreBallsStart(orig);
+    hiscore_ticks = 0;
+    hiscore_key = 0;
+    tick_time = 0.0f;
+}
+
+int UpdateHighScoreScreen(float dt)
+{
+    if (int key = GetKeyPressed())
+        hiscore_key = key;
+    tick_time += dt;
+    if (tick_time > 8.0f / TICK_HZ)
+        tick_time = 8.0f / TICK_HZ;
+    while (tick_time >= 1.0f / TICK_HZ) {
+        tick_time -= 1.0f / TICK_HZ;
+        if (hiscore_ticks++ == 0)
+            continue; // the table alone
+        SimHighScoreBallsTick(orig);
+        SimFlipPage(orig);
+        // 4ad1: a key ends the screen after a move; so do 1024 moves.
+        if (hiscore_key)
+            return hiscore_key;
+        if (hiscore_ticks > HISCORE_BALL_TICKS)
+            return -1;
+    }
+    return 0;
+}
+
+bool HighScoreBallsShown()
+{
+    return hiscore_ticks > 1;
 }

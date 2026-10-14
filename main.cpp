@@ -141,6 +141,21 @@ int main(int argc, char* argv[])
         case STATE_PLAY:
             UpdatePlay(dt);
             break;
+        case STATE_HISCORES: {
+            // TODO item 21: the attract loop's dispatcher (3c55/3c75) and its
+            // demo levels. Until then a key other than Space or F1, or the end of
+            // the screen, goes to the title.
+            int key = UpdateHighScoreScreen(dt);
+            if (key == KEY_SPACE) {
+                StartGame(starting_level);
+                state = STATE_PLAY;
+            } else if (key == KEY_F1) {
+                state = STATE_INFO;
+            } else if (key != 0) {
+                state = STATE_TITLE;
+            }
+            break;
+        }
         }
 
         BeginTextureMode(game_screen);
@@ -161,6 +176,9 @@ int main(int argc, char* argv[])
             DrawTextEGA("F10        - QUIT", 180, 190, EGA_PALETTE[7]);
             DrawTextCenteredSmall("COLLECT B-O-N-U-S LETTERS IN ORDER FOR 500 POINTS", 240, EGA_PALETTE[10]);
             DrawTextCenteredSmall("PRESS SPACE TO RETURN", 300, EGA_PALETTE[8]);
+            break;
+        case STATE_HISCORES:
+            DrawHighScoreScreen(HighScoreBallsShown());
             break;
         case STATE_PLAY: {
             int step = 0;
