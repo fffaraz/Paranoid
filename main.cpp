@@ -120,8 +120,9 @@ int main(int argc, char* argv[])
     InitGame(levels);
 
     while (!WindowShouldClose()) {
-        // F10 exits (original: "Press F10 at any time to exit to Dos")
-        if (IsKeyPressed(KEY_F10) || quit_requested)
+        // F10 quits from the attract loop, during play and after a key in the
+        // wait before a ball (see game.cpp); elsewhere it is just a key.
+        if (quit_requested)
             break;
 
         const float dt = GetFrameTime();
@@ -135,6 +136,7 @@ int main(int argc, char* argv[])
                 StartGame(starting_level);
                 state = STATE_PLAY;
             } else if (key == KEY_F1) {
+                StartInfo();
                 state = STATE_INFO;
             } else if (key == KEY_F10) {
                 quit_requested = true;
@@ -152,13 +154,15 @@ int main(int argc, char* argv[])
             if (IsKeyPressed(KEY_SPACE)) {
                 StartDemoLevel(); // 51d6: the attract loop, from a demo level
                 state = STATE_DEMO;
-            } else if (IsKeyPressed(KEY_F1))
+            } else if (IsKeyPressed(KEY_F1)) {
+                StartInfo();
                 state = STATE_INFO;
+            }
             break;
         case STATE_INFO:
-            // TODO item 22: the original's five pages. After them the
-            // attract loop starts again with a demo level (0xc49).
-            if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_F1)) {
+            // After the last page the attract loop starts again with a demo
+            // level (0xc49).
+            if (UpdateInfo(dt)) {
                 StartDemoLevel();
                 state = STATE_DEMO;
             }
@@ -182,16 +186,7 @@ int main(int argc, char* argv[])
             DrawTitleScreen();
             break;
         case STATE_INFO:
-            DrawTextCenteredMedium("PARANOID", 30, EGA_PALETTE[12]);
-            DrawTextCenteredSmall("BREAK ALL THE BRICKS TO ADVANCE", 80, EGA_PALETTE[15]);
-            DrawTextCenteredSmall("CONTROLS", 110, EGA_PALETTE[14]);
-            DrawTextEGA("LEFT/RIGHT - MOVE PADDLE", 180, 130, EGA_PALETTE[7]);
-            DrawTextEGA("SPACE      - LAUNCH/FIRE LASER", 180, 145, EGA_PALETTE[7]);
-            DrawTextEGA("P          - PAUSE", 180, 160, EGA_PALETTE[7]);
-            DrawTextEGA("ESC        - RETURN TO TITLE", 180, 175, EGA_PALETTE[7]);
-            DrawTextEGA("F10        - QUIT", 180, 190, EGA_PALETTE[7]);
-            DrawTextCenteredSmall("COLLECT B-O-N-U-S LETTERS IN ORDER FOR 500 POINTS", 240, EGA_PALETTE[10]);
-            DrawTextCenteredSmall("PRESS SPACE TO RETURN", 300, EGA_PALETTE[8]);
+            DrawInfoPage(InfoPage());
             break;
         case STATE_DEMO:
             DrawDemo();

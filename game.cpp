@@ -48,6 +48,7 @@ int message_lead = 0; // ticks before the message's box starts
 int hiscore_rank = 0; // the row being named
 int hiscore_ticks = 0; // ticks of the high-score screen: 1 shows the table, then 1 per ball move
 int hiscore_key = 0; // the key that ends the high-score screen
+int info_page = 0; // F1 page 0..4
 int demo_ticks = 0;
 int demo_key = 0; // the key that ends the demo level
 
@@ -434,4 +435,37 @@ int UpdateDemo(float dt)
         }
     }
     return 0;
+}
+
+void StartInfo()
+{
+    // 4bb4. 4f72 waits for a key after pages 1-3; pages 4 and 5 animate
+    // their icons until a key (4cf2).
+    info_page = 0;
+    tick_time = 0.0f;
+}
+
+bool UpdateInfo(float dt)
+{
+    const bool key = BiosKey() != 0;
+    if (info_page >= 3) {
+        for (int ticks = TicksDue(dt); ticks > 0; ticks--) {
+            SimInfoIconsTick(orig);
+            SimFlipPage(orig);
+        }
+    }
+    if (!key)
+        return false;
+    if (++info_page == 5)
+        return true;
+    if (info_page >= 3) {
+        SimInfoIconsStart(orig, info_page == 4);
+        tick_time = 0.0f;
+    }
+    return false;
+}
+
+int InfoPage()
+{
+    return info_page;
 }

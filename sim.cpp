@@ -1400,6 +1400,48 @@ void SimHighScoreBallsTick(OrigState& s)
     }
 }
 
+void SimInfoIconsStart(OrigState& s, bool second_page)
+{
+    // Frames from table 0xc31 (types 0-5) or 0xc3d (types 6-11), places from
+    // 0x1922 or 0x1b87.
+    static const uint16_t places[2][6][2] = {
+        { { 10, 33 }, { 10, 89 }, { 10, 131 }, { 10, 187 }, { 10, 229 }, { 10, 285 } },
+        { { 10, 35 }, { 10, 82 }, { 10, 143 }, { 10, 190 }, { 10, 237 }, { 10, 284 } },
+    };
+    for (int i = 0; i < 6; i++) {
+        const uint16_t slot = uint16_t(INFO_ICONS + i * 7);
+        const int type = (second_page ? 6 : 0) + i;
+        s.b(slot + INFO_ICON_FRAME) = T_C31[type * 2];
+        s.b(slot + INFO_ICON_FIRST) = T_C31[type * 2];
+        s.b(slot + INFO_ICON_LAST) = T_C31[type * 2 + 1];
+    }
+    // Both routines also add 2 to the 4th icon's frame (0xceec), so it starts
+    // one frame later.
+    s.b(INFO_ICONS + 3 * 7 + INFO_ICON_FRAME) += 2;
+    for (int i = 0; i < 6; i++) {
+        const uint16_t slot = uint16_t(INFO_ICONS + i * 7);
+        s.set_w(slot + INFO_ICON_X, places[second_page][i][0]);
+        s.set_w(slot + INFO_ICON_Y, places[second_page][i][1]);
+    }
+}
+
+void SimInfoIconsTick(OrigState& s)
+{
+    // 4e9b: like 23d0, on the same divider.
+    if (s.b(ICON_ANIM_DIV) != 0) {
+        s.b(ICON_ANIM_DIV)--;
+        return;
+    }
+    s.b(ICON_ANIM_DIV) = 4;
+    for (int i = 0; i < 6; i++) {
+        const uint16_t slot = uint16_t(INFO_ICONS + i * 7);
+        uint8_t frame = uint8_t(s.b(slot + INFO_ICON_FRAME) + 2);
+        if (frame > s.b(slot + INFO_ICON_LAST))
+            frame = s.b(slot + INFO_ICON_FIRST);
+        s.b(slot + INFO_ICON_FRAME) = frame;
+    }
+}
+
 int SimEnterHighScore(OrigState& s)
 {
     // 49c9: walk up from the last entry while it is lower than the score; a

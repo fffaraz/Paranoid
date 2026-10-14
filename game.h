@@ -62,6 +62,12 @@ void StartHighScoreScreen();
 int UpdateHighScoreScreen(float dt);
 bool HighScoreBallsShown();
 
+// The five F1 information pages (4bb4). UpdateInfo returns true after the
+// last one.
+void StartInfo();
+bool UpdateInfo(float dt);
+int InfoPage();
+
 // A demo level of the attract loop (3b69). UpdateDemo returns like
 // UpdateHighScoreScreen.
 void StartDemoLevel();

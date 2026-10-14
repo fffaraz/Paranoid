@@ -1082,7 +1082,7 @@ pending (`52df` sets `0xcf0f`; `39f3` resets only the priority `0xcf0e`),
 so the original probably plays one stale demo sound on the first play tick
 of a game.
 
-### [ ] 22. F1 information: five pages
+### [x] 22. F1 information: five pages
 
 **Original (`4bb4`):** `4beb` (pages 1–2), `4c87` (bricks), `4cf2` (icons ×2).
 Each page has the heading `"Paranoid - information"` at col 29, y = 3, and a
@@ -1136,6 +1136,22 @@ a `0xFF` byte (offset = address − 0x100).
 
 **Remake:** one made-up page (`main.cpp` ~143–154) that lists arrow keys and
 says letters are worth 500. Replace it.
+
+**Done:** `DrawInfoPage` (`draw.cpp`) draws the five pages from the
+original's texts and tables; `StartInfo`/`UpdateInfo` (`game.cpp`) step
+through them on any key (as `4f72`, F10 included) and animate the icons of
+pages 4 and 5 every tick (`SimInfoIconsStart`/`SimInfoIconsTick` in
+`sim.cpp`, the slots at `0xced3`, on the shared divider `0xd23a`). Not in
+this note before: both icon pages add 2 to the 4th icon's frame after
+setting it up (`addb [ceec], 2`), so that icon starts one frame later. After
+the last page the attract loop starts with a demo level. F1 works from the
+attract loop and, for now, from the title (item 23). Also: the remake's
+global "F10 quits anywhere" is gone; as in the original F10 quits from the
+attract loop, during play and in the wait before a ball, and is an ordinary
+key elsewhere (so it does nothing on the title until item 23). Checked
+against the original (`tools/grab_original.sh`: Space, F1, then a key every
+3 s; frames matched by hash): all 67 grabs of the five pages are
+pixel-identical to the remake's frames, the animated pages included.
 
 ### [ ] 23. Opening title screen: bouncing balls and credits scroller
 

@@ -26,6 +26,7 @@ constexpr uint16_t ICONS = 0xc2cd; // 5 slots x 9 bytes, see ICON_*
 constexpr uint16_t LASERS = 0xc30e; // 4 slots x 16 bytes, see LASER_*
 constexpr uint16_t DEMO_LEVEL_PTR = 0xcece; // next entry of the demo level list
 constexpr uint16_t DEMO = 0xced0;
+constexpr uint16_t INFO_ICONS = 0xced3; // the F1 pages' 6 icons x 7 bytes, see INFO_ICON_*
 constexpr uint16_t FLASH = 0xcf17; // 266 x (col, row, timer)
 constexpr uint16_t FLASH_COUNT = 0xd235;
 constexpr uint16_t FLASH_MASK = 0xd236;
@@ -74,6 +75,8 @@ constexpr uint16_t BALL_X = 0, BALL_Y = 2, BALL_DX = 4, BALL_DY = 6, BALL_FLAGS 
 constexpr uint8_t BALL_ACTIVE = 1, BALL_THROUGH = 2, BALL_BELOW_BAT = 4, BALL_STUCK = 8;
 // Icon slot fields. x is in 8-px columns.
 constexpr uint16_t ICON_X = 0, ICON_Y = 2, ICON_TYPE = 4, ICON_FRAME = 5, ICON_FIRST = 6, ICON_LAST = 7, ICON_ACTIVE = 8;
+// Fields of the F1 pages' icons. x is in 8-px columns.
+constexpr uint16_t INFO_ICON_X = 0, INFO_ICON_Y = 2, INFO_ICON_FRAME = 4, INFO_ICON_FIRST = 5, INFO_ICON_LAST = 6;
 // Laser slot fields.
 constexpr uint16_t LASER_X = 0, LASER_Y = 2, LASER_ACTIVE = 4;
 // Key states, written by the caller like the original's keyboard handler (5045).
@@ -140,6 +143,11 @@ bool SimNextLevel(OrigState& s); // false after level 30
 // key.
 void SimHighScoreBallsStart(OrigState& s);
 void SimHighScoreBallsTick(OrigState& s);
+
+// The animated icons of the F1 pages 4 and 5 (4dcb / 4e13): icons 0-5 or
+// 6-11 at their places on the page. Then one SimInfoIconsTick per tick (4e9b).
+void SimInfoIconsStart(OrigState& s, bool second_page);
+void SimInfoIconsTick(OrigState& s);
 
 // High-score table (4882). SimEnterHighScore puts the score and level into
 // the table and returns the rank, 1..10, or 11 if the score doesn't qualify

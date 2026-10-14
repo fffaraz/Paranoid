@@ -39,6 +39,9 @@ void DrawNameInput(int rank);
 // The attract loop's high-score screen (4ba7): the table and the balls.
 void DrawHighScoreScreen(bool balls);
 
+// F1 information page 0..4 (4bb4).
+void DrawInfoPage(int page);
+
 void DrawTitleScreen(void);
 struct PlayView;
 void DrawPlay(const PlayView& view);

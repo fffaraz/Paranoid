@@ -346,6 +346,170 @@ void DrawNameInput(int rank)
     DrawRectangle(cursor * 8, y + 14, 8, 1, EGA_PALETTE[14]);
 }
 
+// The F1 pages' texts (lists at 0xd84, 0x110d, 0x16b1, 0x193a).
+static const char* const INFO_PAGE1[] = {
+    "  The object of the game Paranoid is to remove all of the",
+    "bricks from the top of the screen.  To accomplish this",
+    "mammoth task, you are equipped with a small but perfectly",
+    "formed bat with which you must hit the ball at the bricks.",
+    "",
+    "  When the ball collides with a brick, you will notice three",
+    "or maybe four things.  First, an annoying sound effect,",
+    "second, the brick flashes white and disappears, third, your",
+    "score goes up, by different amounts for different sorts of",
+    "brick, and fourth, a brilliantly animated icon might float",
+    "majestically down to your awaiting bat.  If you catch one of",
+    "these, strange and wondrous things happen....",
+    "",
+    "  To control your bat, use the left and right shift keys to",
+    "move left and right.  The spacebar is used to activate",
+    "special powers which the icons bestow on your bat - more on",
+    "that later.  If, however, you should miss a ball, your bat",
+    "loses any powers it might have had.",
+};
+static const char* const INFO_PAGE2[] = {
+    "  Some of the bricks have letters written on them, and when",
+    "you hit one of these, the same letter lights up in the Bonus",
+    "panel to the right of the play area.  When all five letters",
+    "are lit, a bonus will be added to your score - you will get",
+    "more points if you collect the letters in the correct order.",
+    "The other three panels, Score, Level and Balls, need no",
+    "explanation.",
+    "",
+    "  During the game, the ball speeds up to stop things",
+    "becoming too easy.  Each ball starts off at a nice dawdling",
+    "rate, but then gets faster the longer it stays in play.",
+    "",
+    "",
+    "  Press F10 at any time to exit to Dos, and Escape to return",
+    "to the demo from a game.",
+};
+static const char* const INFO_ICONS1[] = {
+    "This handy icon increases the size of your bat by a",
+    "mighty third - very convenient for those hard-to-reach",
+    "shots.",
+    "",
+    "Catch this icon, and you will find that your bat has",
+    "shrunk by a third.  Not a particularly useful icon.",
+    "",
+    "If you succeed in capturing this icon, your bat will",
+    "be able to catch the ball.  When the ball is stuck to",
+    "your bat, press the spacebar to release it.",
+    "",
+    "Get this icon to add an incredible 500 points to your",
+    "score.",
+    "",
+    "If you manage to catch this icon, you will be able to",
+    "obliterate bricks with some heavy artillery - use the",
+    "spacebar to fire.",
+    "",
+    "This icon splits the next two balls that hit your bat in",
+    "two.",
+};
+static const char* const INFO_ICONS2[] = {
+    "To increase your stock of balls, catch this icon and you",
+    "will gain an extra one.",
+    "",
+    "When you catch this icon, a thin line will appear at the",
+    "bottom of the screen.  If you miss a ball, it will",
+    "bounce off this barrier - but only once.",
+    "",
+    "If the current level is too tricky for you, catch this",
+    "icon to be whisked away to the next one.",
+    "",
+    "The ball will speed up if you are unfortunate enough to",
+    "catch this icon.",
+    "",
+    "This icon will slow all the balls down to their original",
+    "ambling pace.",
+    "",
+    "A very potent icon - instead of bouncing off the bricks,",
+    "for one hit the ball will travel straight through them.",
+};
+
+// 4bc4: the page, 4beb / 4c87 / 4cf2: heading, body and footer.
+void DrawInfoPage(int page)
+{
+    DrawRaisedBox(0, 0, 639, 349);
+    DrawSunkenBox(28, 21, 611, 328);
+    const Color body = EGA_PALETTE[10], dark = EGA_PALETTE[0];
+    DrawTextEGAMedium("Paranoid - information", 29 * 8, 3, dark);
+    auto list = [&](const char* const* lines, int count, int col, int y, int empty_extra) {
+        for (int i = 0; i < count; i++) {
+            if (!lines[i][0])
+                y += empty_extra;
+            DrawTextEGAMedium(lines[i], col * 8, y, body);
+            y += 14;
+        }
+    };
+    auto icons = [] {
+        // 4e5b: the 6 icons through 5919, as in play.
+        for (int i = 0; i < 6; i++) {
+            const uint16_t slot = uint16_t(addr::INFO_ICONS + i * 7);
+            const int frame = orig.b(slot + INFO_ICON_FRAME) / 2;
+            if (frame < 68)
+                DrawTexture(tex_icon_frames[ICON_SPRITE[frame]], orig.w(slot + INFO_ICON_X) * 8, orig.w(slot + INFO_ICON_Y), WHITE);
+        }
+    };
+    switch (page) {
+    case 0:
+        list(INFO_PAGE1, int(sizeof(INFO_PAGE1) / sizeof(*INFO_PAGE1)), 10, 33, 0);
+        DrawTextEGAMedium("Press a key for the next page", 25 * 8, 332, dark);
+        break;
+    case 1:
+        list(INFO_PAGE2, int(sizeof(INFO_PAGE2) / sizeof(*INFO_PAGE2)), 10, 33, 0);
+        DrawTextEGAMedium("Press a key for brick descriptions", 23 * 8, 332, dark);
+        break;
+    case 2: {
+        // Brick types 1-31 at (col, y) from 0x141f; 5 and 7 aren't shown.
+        static const int16_t places[31][2] = {
+            { 10, 168 }, { 15, 168 }, { 20, 168 }, { 10, 80 }, { -1, -1 }, { 10, 94 }, { -1, -1 }, { 10, 212 },
+            { 30, 36 }, { 10, 272 }, { 15, 279 }, { 20, 286 }, { 25, 293 }, { 30, 300 }, { 30, 50 }, { 10, 50 },
+            { 15, 50 }, { 20, 50 }, { 25, 50 }, { 10, 124 }, { 15, 129 }, { 20, 133 }, { 25, 138 }, { 10, 36 },
+            { 15, 36 }, { 20, 36 }, { 25, 36 }, { 10, 242 }, { 10, 182 }, { 15, 182 }, { 20, 182 }
+        };
+        for (int type = 1; type <= 31; type++) {
+            if (places[type - 1][0] >= 0)
+                DrawTexture(tex_bricks[type], places[type - 1][0] * 8, places[type - 1][1], WHITE);
+        }
+        DrawTextEGAMedium("Press a key for icon descriptions", 23 * 8, 332, dark);
+        // The texts at 0x149b.
+        static const struct {
+            int col, y;
+            const char* text;
+        } texts[] = {
+            { 36, 34, "These are normal bricks - the top" },
+            { 36, 48, "row score 10 each, the rest 15." },
+            { 16, 78, "You need to hit these twice each - score 15 for the" },
+            { 16, 92, "first hit, then 10 for the second." },
+            { 31, 122, "Four hits are needed to remove this" },
+            { 31, 136, "type, scoring 70 points in total." },
+            { 26, 166, "The ones with pretty pictures on are worth" },
+            { 26, 180, "20 points each." },
+            { 16, 210, "This sort only gives you a paltry 5 points." },
+            { 16, 240, "No amount of battering can demolish this sturdy block." },
+            { 36, 270, "Collect these in the right order" },
+            { 36, 284, "and score 500, otherwise only 200." },
+            { 36, 298, "10 points for each one anyway." },
+        };
+        for (const auto& t : texts)
+            DrawTextEGAMedium(t.text, t.col * 8, t.y, body);
+        break;
+    }
+    case 3:
+        DrawTextEGAMedium("Press a key for the next page", 25 * 8, 332, dark);
+        list(INFO_ICONS1, int(sizeof(INFO_ICONS1) / sizeof(*INFO_ICONS1)), 14, 33, 0);
+        icons();
+        break;
+    default:
+        DrawTextEGAMedium("Press a key to return to the demo", 23 * 8, 332, dark);
+        // An empty line here is 5 px taller (4d8f).
+        list(INFO_ICONS2, int(sizeof(INFO_ICONS2) / sizeof(*INFO_ICONS2)), 14, 35, 5);
+        icons();
+        break;
+    }
+}
+
 void DrawTitleScreen(void)
 {
     DrawRectangle(0, 0, 640, 280, EGA_PALETTE[7]);
