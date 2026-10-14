@@ -54,11 +54,12 @@ int main(int argc, char* argv[])
 {
     const char* replay_path = nullptr;
     const char* trace_path = nullptr;
+    int starting_level = 1; // remake addition: -l N
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) {
-            int lvl = atoi(argv[++i]) - 1;
-            if (lvl >= 0 && lvl < LEVEL_COUNT)
-                current_level = lvl;
+            int lvl = atoi(argv[++i]);
+            if (lvl >= 1 && lvl <= LEVEL_COUNT)
+                starting_level = lvl;
         } else if (strcmp(argv[i], "--replay") == 0 && i + 1 < argc) {
             replay_path = argv[++i];
         } else if (strcmp(argv[i], "--trace") == 0 && i + 1 < argc) {
@@ -73,10 +74,11 @@ int main(int argc, char* argv[])
         }
         return Replay(replay_path, trace_path);
     }
-    const int starting_level = current_level;
 
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(1280, 700, "Paranoid");
+    // Escape belongs to the game (it ends a game), not to raylib.
+    SetExitKey(KEY_NULL);
     SetWindowMinSize(640, 350);
     load_sounds(sounds);
 
@@ -115,11 +117,11 @@ int main(int argc, char* argv[])
     SetTextureFilter(game_screen.texture, TEXTURE_FILTER_POINT);
 
     SetTargetFPS(60);
-    LoadLevel(current_level, levels);
+    InitGame(levels);
 
     while (!WindowShouldClose()) {
         // F10 exits (original: "Press F10 at any time to exit to Dos")
-        if (IsKeyPressed(KEY_F10))
+        if (IsKeyPressed(KEY_F10) || quit_requested)
             break;
 
         const float dt = GetFrameTime();
@@ -127,11 +129,7 @@ int main(int argc, char* argv[])
         switch (state) {
         case STATE_TITLE:
             if (IsKeyPressed(KEY_SPACE)) {
-                current_level = starting_level;
-                score = 0;
-                lives = 3;
-                next_extra_life_score = 4000;
-                LoadLevel(current_level, levels);
+                StartGame(starting_level);
                 state = STATE_PLAY;
             } else if (IsKeyPressed(KEY_F1))
                 state = STATE_INFO;
@@ -141,24 +139,11 @@ int main(int argc, char* argv[])
                 state = STATE_TITLE;
             break;
         case STATE_PLAY:
-            if (IsKeyPressed(KEY_P))
-                state = STATE_PAUSED;
-            else
-                UpdatePlay(dt, levels);
-            break;
-        case STATE_PAUSED:
-            if (IsKeyPressed(KEY_P) || IsKeyPressed(KEY_SPACE))
-                state = STATE_PLAY;
-            else if (IsKeyPressed(KEY_ESCAPE))
-                state = STATE_TITLE;
+            UpdatePlay(dt);
             break;
         case STATE_GAMEOVER:
             if (IsKeyPressed(KEY_SPACE)) {
-                lives = 3;
-                score = 0;
-                next_extra_life_score = 4000;
-                current_level = starting_level;
-                LoadLevel(current_level, levels);
+                StartGame(starting_level);
                 state = STATE_PLAY;
             }
             break;
@@ -189,11 +174,11 @@ int main(int argc, char* argv[])
             break;
         case STATE_PLAY:
             DrawPlay();
-            break;
-        case STATE_PAUSED:
-            DrawPlay();
-            DrawRectangle(0, 160, 640, 30, (Color) { 0, 0, 0, 200 });
-            DrawTextCenteredMedium("PAUSED", 165, EGA_PALETTE[14]);
+            // Remake addition: a banner while the game is paused.
+            if (orig.paused) {
+                DrawRectangle(0, 160, 640, 30, (Color) { 0, 0, 0, 200 });
+                DrawTextCenteredMedium("PAUSED", 165, EGA_PALETTE[14]);
+            }
             break;
         case STATE_GAMEOVER:
             DrawTextEGA("GAME OVER", 280, 150, EGA_PALETTE[12]);

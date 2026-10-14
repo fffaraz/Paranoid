@@ -153,7 +153,24 @@ The original plan for this step:
 - Run `tools/trace_diff.py` until all records 0–10239 match. Then add the
   CTest test, which **skips** when the trace file is missing (TODO V4).
 
-### Step 4 — switch the game over
+### Step 4 — switch the game over — DONE
+
+Done; see the Step 4 progress notes above item 1 and under item 14 in
+`TODO.md`. Notes for later:
+- Keys (`game.cpp`): left/right/Esc/F10 follow the key state each tick; the
+  action key and P are set on a press or an OS key repeat (like DOS
+  typematic) and cleared after the tick once released, because their handlers
+  clear them. The remake's extras are kept: arrow keys, `-l N`, the PAUSED
+  banner, Space to end the pause, Esc during the pause to leave the game.
+- `SetExitKey(KEY_NULL)`: Esc no longer closes the window (raylib's default);
+  it ends the game like the original.
+- Drawing uses the page on screen (the one drawn before the last flip) for
+  the brick flashes and the barrier line, so they look as in the original.
+- The icon sprites come from the pointer table `0xba9` (`ICON_SPRITE` in
+  `draw.cpp`); the old `icon_anim` guess is gone. Not yet compared with the
+  original's screen (V5).
+
+The original plan for this step:
 
 - Drive the play state from `sim` at a fixed 70 Hz accumulator.
 - Draw from `OrigState` in `draw.cpp`: 8×6 ball sprite, 3×8 laser, the 1-px

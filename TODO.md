@@ -396,7 +396,19 @@ demo, so checked only against the asm: speed-up (the demo never reaches 1536
 ticks), the 3-cell case and the corner tie-break (`27c2`), losing a ball and
 the below-bat flag, barrier, split, lasers, icon effects, letters, score
 count-up and extra ball, the play loop, settle, pause. Those need play traces
-(V3). Don't tick items 1–11 until Step 4 switches the game over.
+(V3).
+
+**Progress (Step 4):** the game now runs on `sim`. `game.cpp` is the play
+flow at 70 ticks per second (120-tick life wait that a key ends, then `3cdc`'s
+Esc/F10 check; play; settle; the 30-tick wait before the next level), and
+`draw.cpp` draws from `OrigState`. The old float code is gone. Checked with a
+scratch driver (hidden window, the demo's bat AI, screenshots): play, brick
+flashes, icons falling and caught, lasers, sticky bat, the barrier, losing
+all lives to game over, and the skip-level path to level 2. Item 1's
+acceptance: after the same play time at 30, 60, 70 and 144 fps the original's
+memory is byte-identical (checked at 3, 5, 9 and 15 s). Not done in Step 4:
+the level intro box (item 15) and the other screens of Part C, and the panel
+layout of item 30.
 
 ### [ ] 1. Fixed 70 Hz tick with whole-pixel movement
 
@@ -693,6 +705,14 @@ comments in `sound.cpp` (~114, ~124, ~200).
 The original sound priority rule is in `52df`: a new sound plays only if its
 first byte (priority) is ≥ the current one. Check that the `play_sound`
 priorities in `main.cpp` match those first bytes.
+
+**Progress (Step 4):** the simulation now names each sound by its pattern
+address, and `play_pattern` (`sound.cpp`) plays it with the priority byte
+read from the binary (bat 4, walls 2, brick 3, laser hit 3, laser 4, barrier
+2, ball lost 10, level cleared 11, pickups 8, skip level 9). So every row of
+the table above now plays the original's sound, including ball lost on every
+life, the extra ball (`0xD3C` = the extra-life pickup sound) and `0xCDE`
+after a skip. Still to do: the renames and the comments in `sound.cpp`.
 
 ---
 

@@ -22,24 +22,18 @@ Texture2D tex_font_large[FONT_LARGE_CHARS];
 constexpr int ICON_FRAME_COUNT = ICON_SHEET_H / ICON_FRAME_H; // 49
 Texture2D tex_icon_frames[ICON_FRAME_COUNT];
 
-// Powerup icon animation: first sprite index and frame count per icon type
-static const struct {
-    int first;
-    int count;
-} icon_anim[12] = {
-    { 0, 5 }, // ENLARGE:   growing bar (sprites 0-4)
-    { 5, 5 }, // SHRINK:    shrinking bar (sprites 5-9)
-    { 10, 5 }, // STICKY:    moving dots (sprites 10-14)
-    { 15, 1 }, // 500PTS:    letter B (sprite 15)
-    { 28, 5 }, // LASER:     laser bars (sprites 28-32)
-    { 19, 7 }, // SPLIT:     circles splitting (sprites 19-25)
-    { 44, 5 }, // EXTRALIFE: invader (sprites 44-48)
-    { 31, 2 }, // BARRIER:   horizontal bars (sprites 31-32)
-    { 40, 4 }, // SKIP:      checkmark cycling (sprites 40-43)
-    { 33, 1 }, // SPEEDUP:   lightning (sprite 33)
-    { 36, 4 }, // SLOWDOWN:  X cycling (sprites 36-39)
-    { 17, 1 }, // THROUGH:   star (sprite 17)
+// Sprite in the icon sheet for each icon frame. The original's frame numbers
+// are byte offsets into a pointer table (0xba9) to sprites kept in video
+// memory 24 bytes apart, in sheet order.
+static const uint8_t ICON_SPRITE[68] = {
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 15, 16, 16, 17, 17, 18, 18,
+    19, 19, 20, 20, 21, 22, 23, 24, 25, 25, 26, 26, 27, 27, 28, 29, 30, 31, 32, 31, 30,
+    29, 33, 34, 35, 36, 37, 38, 39, 38, 37, 40, 41, 42, 43, 42, 41, 44, 45, 46, 45, 44,
+    47, 48, 47
 };
+
+// The flash colour: brick sprite 0x20 (5b26 -> 5a1f).
+constexpr int FLASH_BRICK = 0x20;
 
 Texture2D CreateTextureFromIndexed(const uint8_t* pixels, int width, int height, bool transparentZero)
 {
@@ -192,14 +186,10 @@ void LoadGameTextures(const BitMaps& bitmaps, const Fonts& fonts)
 
 void DrawPlay()
 {
-    int offsetX = PLAY_LEFT;
-    int rightEdge = PLAY_RIGHT;
-    int offsetY = BRICK_TOP;
-
     // The original playfield occupies the left 480 pixels, with a separate
     // gray control panel on the right (rather than a centered playfield).
     DrawRectangle(0, 0, 480, 350, EGA_PALETTE[7]);
-    DrawRectangle(PLAY_LEFT, BRICK_TOP, PLAY_RIGHT - PLAY_LEFT, 326, BLACK);
+    DrawRectangle(PLAY_LEFT, BRICK_TOP, PLAY_COLS * BRICK_W, 326, BLACK);
     DrawRectangle(0, 0, 480, 1, WHITE);
     DrawRectangle(0, 0, 1, 350, WHITE);
     DrawRectangle(479, 0, 1, 350, EGA_PALETTE[8]);
@@ -223,52 +213,75 @@ void DrawPlay()
         DrawRectangle(539, y + 13, 1, 20, WHITE);
     }
 
-    for (int r = 0; r < PLAY_ROWS; r++) {
-        for (int c = 0; c < PLAY_COLS; c++) {
-            uint8_t type = grid[r][c];
-            if (type > 0 && type < BRICK_COUNT) {
-                DrawTexture(tex_bricks[type], offsetX + c * BRICK_W, offsetY + r * BRICK_H, WHITE);
-            }
-        }
-    }
-
-    for (int pi = 0; pi < MAX_POWERUPS; pi++) {
-        if (powerups[pi].active) {
-            int type = powerups[pi].type;
-            if (type >= 0 && type < 12) {
-                int first = icon_anim[type].first;
-                int count = icon_anim[type].count;
-                int frame = powerup_anim_frame % count;
-                DrawTexture(tex_icon_frames[first + frame], powerups[pi].x, powerups[pi].y, WHITE);
-            }
-        }
-    }
-
-    // Draw barrier if active
-    if (barrier_active) {
-        DrawRectangle(offsetX, 328, PLAY_COLS * BRICK_W, 2, EGA_PALETTE[15]);
-    }
-
     DrawTextEGALarge("PARANOID", 144, 256, EGA_PALETTE[8]);
-    // The DOS bat is four EGA scanlines tall. Its first and last lines
-    // leave one pixel clear at each end; the middle two span its full width.
-    int bat_x = (int)paddle.x;
-    int bat_y = (int)paddle.y;
-    int bat_w = (int)paddle.w;
-    DrawRectangle(bat_x + 1, bat_y, bat_w - 2, 1, WHITE);
-    DrawRectangle(bat_x, bat_y + 1, bat_w, 2, WHITE);
-    DrawRectangle(bat_x + 1, bat_y + 3, bat_w - 2, 1, WHITE);
 
-    // Draw lasers
-    for (int i = 0; i < MAX_LASERS; i++) {
-        if (active_lasers[i].active) {
-            DrawRectangle(active_lasers[i].x - 1, active_lasers[i].y - 4, 3, 8, EGA_PALETTE[14]);
+    // Bricks (5a1f): column c at x = 16 + 32c, row r at y = 12 + 12r.
+    for (int c = 0; c < PLAY_COLS; c++) {
+        for (int r = 0; r < PLAY_ROWS; r++) {
+            uint8_t type = orig.b(uint16_t(addr::BRICKS + c * PLAY_ROWS + r));
+            if (type > 0 && type < BRICK_COUNT)
+                DrawTexture(tex_bricks[type], PLAY_LEFT + c * BRICK_W, BRICK_TOP + r * BRICK_H, WHITE);
         }
     }
 
-    for (int bi = 0; bi < MAX_BALLS; bi++) {
-        if (balls[bi].active)
-            DrawCircle(balls[bi].x, balls[bi].y, 4, WHITE);
+    // The page on screen is the one drawn last, before the flip.
+    const bool shown_page = orig.b(addr::PAGE) == 0;
+
+    // Flashing bricks (5b26): white on a page from the tick that page first
+    // draws it until the tick it draws the brick again.
+    const uint8_t flash_mask = shown_page ? 0x80 : 0x40;
+    for (uint16_t e = addr::FLASH; e < addr::FLASH_COUNT; e += 3) {
+        if (orig.b(e + 2) & flash_mask)
+            DrawTexture(tex_bricks[FLASH_BRICK], PLAY_LEFT + orig.b(e) * BRICK_W, BRICK_TOP + orig.b(e + 1) * BRICK_H, WHITE);
+    }
+
+    // Icons (5919): 16x12 at (x*8, y), cut off below y = 337.
+    for (uint16_t i = addr::ICONS; i < addr::ICONS + 5 * 9; i += 9) {
+        if (!orig.b(i + ICON_ACTIVE))
+            continue;
+        int x = orig.w(i + ICON_X) * 8, y = orig.w(i + ICON_Y);
+        int h = 0x152 - y < ICON_FRAME_H ? 0x152 - y : ICON_FRAME_H;
+        int frame = orig.b(i + ICON_FRAME) / 2;
+        if (h > 0 && frame < 68)
+            DrawTextureRec(tex_icon_frames[ICON_SPRITE[frame]], { 0, 0, (float)ICON_SHEET_W, (float)h }, { (float)x, (float)y }, WHITE);
+    }
+
+    // Barrier line (5be5): 1 px at y = 335 from x = 15 to 463, while the shown
+    // page has it drawn.
+    if (orig.b(addr::BARRIER_DRAWN) & (shown_page ? 2 : 1))
+        DrawRectangle(15, 335, 463 - 15 + 1, 1, EGA_PALETTE[15]);
+
+    // The DOS bat is four EGA scanlines tall, from y = 329. Its first and last
+    // lines leave one pixel clear at each end; the middle two span its full
+    // width.
+    int bat_x = orig.w(addr::BAT_X);
+    int bat_w = orig.b(addr::BAT_W) * 8;
+    DrawRectangle(bat_x + 1, 329, bat_w - 2, 1, WHITE);
+    DrawRectangle(bat_x, 330, bat_w, 2, WHITE);
+    DrawRectangle(bat_x + 1, 332, bat_w - 2, 1, WHITE);
+
+    // Laser shots (5e23): 3x8 yellow, top-left at (x, y), cut off above the
+    // playfield.
+    for (uint16_t i = addr::LASERS; i < addr::LASERS + 4 * 16; i += 16) {
+        if (!(orig.w(i + LASER_ACTIVE) & 1))
+            continue;
+        int x = orig.w(i + LASER_X), y = orig.w(i + LASER_Y);
+        int top = y < BRICK_TOP ? BRICK_TOP : y;
+        if (y + 8 > top)
+            DrawRectangle(x, top, 3, y + 8 - top, EGA_PALETTE[14]);
+    }
+
+    // Balls (564a): the 8x6 sprite at 0xa53, top-left at (x, y), rows below
+    // y = 337 cut off.
+    static const struct {
+        int left, width;
+    } ball_rows[6] = { { 2, 4 }, { 1, 6 }, { 0, 8 }, { 0, 8 }, { 1, 6 }, { 2, 4 } };
+    for (uint16_t i = addr::BALLS; i < addr::BALLS + 16 * 16; i += 16) {
+        if (!(orig.b(i + BALL_FLAGS) & BALL_ACTIVE))
+            continue;
+        int x = int16_t(orig.w(i + BALL_X)), y = int16_t(orig.w(i + BALL_Y));
+        for (int row = 0; row < 6 && y + row <= 337; row++)
+            DrawRectangle(x + ball_rows[row].left, y + row, ball_rows[row].width, 1, WHITE);
     }
 
     DrawTextEGA("SCORE", 548, 23, BLACK);
@@ -283,13 +296,19 @@ void DrawPlay()
         for (int i = 0; i < length; i++)
             DrawTexture(tex_digits[digits[i] - '0' + 1], x + i * DIGIT_W, y, WHITE);
     };
-    draw_panel_number(score, 38);
-    draw_panel_number(current_level + 1, 90);
-    draw_panel_number(lives, 142);
+    auto digits = [](uint16_t a, int n) {
+        int value = 0;
+        for (int i = 0; i < n; i++)
+            value = value * 10 + orig.b(uint16_t(a + i));
+        return value;
+    };
+    draw_panel_number(digits(addr::SCORE, 6), 38);
+    draw_panel_number(digits(addr::LEVEL_DIGITS, 2), 90);
+    draw_panel_number(digits(addr::LIVES_DIGITS, 2), 142);
     for (int b = 0; b < 5; b++) {
         char bonusChar[2] = { "BONUS"[b], '\0' };
         DrawTextEGA(bonusChar, 548 + b * 8, 194,
-            (letters_collected & (1 << b)) ? EGA_PALETTE[14] : WHITE);
+            (orig.b(addr::LETTERS) & (1 << b)) ? EGA_PALETTE[14] : WHITE);
     }
 
     DrawRectangle(526, 238, 86, 20, EGA_PALETTE[7]);

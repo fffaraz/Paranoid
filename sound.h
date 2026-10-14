@@ -2,6 +2,8 @@
 
 #include <raylib.h>
 
+#include <cstdint>
+
 struct Sounds {
     Sound snd_bounce; // wall bounce (left/right walls)
     Sound snd_top_bounce; // top wall bounce
@@ -19,3 +21,6 @@ struct Sounds {
 
 void load_sounds(Sounds& sounds);
 void play_sound(Sounds& sounds, Sound& effect, int priority);
+// Play a sound the simulation started, by its pattern address in the original
+// (sim.h, OrigState::sounds), with the original's priority.
+void play_pattern(Sounds& sounds, uint16_t pattern);

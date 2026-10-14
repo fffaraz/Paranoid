@@ -225,3 +225,45 @@ void play_sound(Sounds& sounds, Sound& effect, int priority)
     sounds.active_priority = priority;
     PlaySound(effect);
 }
+
+void play_pattern(Sounds& sounds, uint16_t pattern)
+{
+    // The first byte of each pattern is its priority (52df).
+    static const uint16_t pickups[12] = { 0xcf7, 0xd01, 0xd08, 0xd15, 0xd28, 0xd2f, 0xd3c, 0xd4f, 0xd5c, 0xd63, 0xd6d, 0xd77 };
+    for (int i = 0; i < 12; i++) {
+        // 0xd3c is also the extra-ball sound (5f89).
+        if (pattern == pickups[i]) {
+            play_sound(sounds, sounds.snd_powerup[i], pattern == 0xd5c ? 9 : 8);
+            return;
+        }
+    }
+    switch (pattern) {
+    case 0xc7c: // ball hits the bat
+        play_sound(sounds, sounds.snd_paddle_catch, 4);
+        break;
+    case 0xc83: // side wall
+        play_sound(sounds, sounds.snd_bounce, 2);
+        break;
+    case 0xc8a: // top wall
+        play_sound(sounds, sounds.snd_top_bounce, 2);
+        break;
+    case 0xc91: // brick bounce
+        play_sound(sounds, sounds.snd_paddle, 3);
+        break;
+    case 0xc9e: // laser hits a brick
+        play_sound(sounds, sounds.snd_laser_hit, 3);
+        break;
+    case 0xcb7: // laser fired
+        play_sound(sounds, sounds.snd_laser, 4);
+        break;
+    case 0xcbe: // barrier
+        play_sound(sounds, sounds.snd_barrier, 2);
+        break;
+    case 0xcc5: // last ball lost
+        play_sound(sounds, sounds.snd_game_over, 10);
+        break;
+    case 0xcde: // level cleared
+        play_sound(sounds, sounds.snd_level_complete, 11);
+        break;
+    }
+}
