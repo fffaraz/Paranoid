@@ -1112,6 +1112,25 @@ order, once. Options to offer the user:
 
 Whichever is chosen, add a comment citing `0x2adc` and `5e65`.
 
+### [ ] 33. Levels are drawn mirrored left to right (quick fix)
+
+**Found from `demo.trace.gz`.** The original's brick grid at `0x8100` is the
+decrypted level data unchanged (`3437` copies it). Column `c` is drawn and
+collided at x = `16 + c*32`: `5a1f` draws at `row*0x3c0 + col*4 + 0x3c2`, and
+collision uses col = `(x-16)/32`. The trace confirms it: each time a brick
+breaks, the ball is at that column's x.
+
+The remake's `LoadLevel` (`game.cpp`, `grid[r][c] = lvl->bricks[13 - c][r]`,
+and the same for `attrs`) **mirrors every level**. 19 of the 30 brick layouts
+(levels 3–7, 10–14, 16, 21, 23, 25–30) and the icon placement of all 30
+levels come out on the wrong side.
+
+**Do:** use `lvl->bricks[c][r]` and `lvl->attrs[c][r]`. (`Level::bricks` is
+`[14][19]`, column-major, index `col*19 + row`; the `LEVEL_ROWS`/`LEVEL_COLS`
+names in `levels.h` are swapped, so fix those names and the comment in
+`levels.cpp` too.) Check by comparing the first record of each demo level in
+`demo.trace.gz` with the remake's grid.
+
 ---
 
 ## Out of scope (in the binary, but don't port)

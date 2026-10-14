@@ -1,0 +1,150 @@
+# NEXT — where to start (handoff from the session of 2026-10-13)
+
+Read this first, then `CLAUDE.md`, then these sections of `TODO.md`:
+**Decisions**, **How to do Part A**, **Part 0**, and the RAM map. Also read
+`tools/TRACE_FORMAT.md` and `tests/reference/README.md`.
+
+## Where things stand
+
+- `TODO.md` lists every known difference from the original (items 1–33 plus
+  verification items V1–V7), with addresses in the disassembly.
+- The remake is split into `game.cpp/.h` (simulation), `draw.cpp/.h`
+  (drawing) and `main.cpp` (start-up, states). Its behaviour hasn't changed
+  yet.
+- **Reference tooling works (V1, V2 done):**
+  - `tools/run_original.sh` runs the original in DOSBox-X.
+  - `tools/make_trace_com.py` builds `PARTRACE.COM`, which records the state
+    every tick.
+  - `tools/trace_dump.py` and `tools/trace_format.py` read the records.
+- **Demo reference:** `tests/reference/demo.trace.gz` (11264 ticks). It is
+  **git-ignored**. If it's missing, run `tools/make_demo_trace.sh` (about
+  5 minutes, opens a DOSBox-X window), then check that
+  `python3 -I tools/trace_dump.py tests/reference/demo.trace.gz --summary`
+  lists levels 02, 05, 06, 09, 10, 07, 04, 03, 01, 08, 02 at 1024 records
+  each.
+- **Not started:** V4 (the remake's `--trace`/`--replay` and `trace_diff.py`)
+  and all of Parts A–E.
+- `TODO.md` has uncommitted changes (item 33). Ask the user whether to commit
+  before starting.
+
+## Before writing code: ask the user one thing
+
+The open decisions in `TODO.md` must be **asked, not assumed**. One of them
+blocks the plan below: a literal port reproduces the original's bugs (the
+bat-direction quirk in item 2, and others found later), and the demo trace
+can only match if they are reproduced. Ask whether to port faithfully, with an
+option to switch the bugs off later. The bonus-letter bugs (item 32) aren't
+reached in the demo, but ask about them at the same time.
+
+## The plan, in order
+
+### Step 0 — item 33: levels are mirrored (small, separate)
+
+`LoadLevel` in `game.cpp` uses `bricks[13 - c][r]`. The original uses the data
+unmirrored (`bricks[c][r]`, column `c` at x = 16 + 32c); this is proven from
+the trace (see item 33). Fix it, and rename the swapped
+`LEVEL_ROWS`/`LEVEL_COLS` in `levels.h`. Build and check by eye: level 3 should
+now look like the original.
+
+### Step 1 — `tools/trace_diff.py` (TODO V4)
+
+`trace_diff.py REF OURS [--from N] [--context K]`:
+- Read both traces with `trace_format.read_records` (handles `.gz`).
+- Compare record by record, skipping the bytes where
+  `trace_format.ignored(offset)` is true: header, display page, collision
+  scratch `0xd37c–0xd397`.
+- Print the first differing record: index, loop, level, every differing field
+  by name (`trace_format.field_at`) with both values, and the decoded
+  records for K ticks before it.
+- Exit 1 on a mismatch or a length difference, 0 when they match.
+
+### Step 2 — the literal simulation port (Part A, items 1–11; also 12, 13, 28, 29)
+
+Write a new `sim.h`/`sim.cpp` (keep `game.cpp` running until step 4):
+- `struct OrigState`: the original's variables with the same meaning and
+  widths. Balls 16 × {x, y, dx, dy (int16), flags, counter (uint16)}; icons
+  5 slots; lasers 4; flash queue; brick grid `[14][19]` and attrs, index
+  `col*19 + row`; every variable in `trace_format.VARS`. Write
+  `void ToTraceRecord(const OrigState&, uint8_t out[2088], int loop, uint32_t tick)`
+  in the exact layout of `trace_format.BLOCKS`, so traces can be compared byte
+  for byte. Write zeros for the page bytes.
+- One function per original routine, named after its address, in integer
+  code. Port from `paranoid-v1.8/PARANOID.c`, checking odd branches against
+  the asm bytes. The routines (details in `TODO.md` items 2–11):
+  - `2e09`/`2d3e` ball step, `2b8c` walls, `2693`/`2858`/`290d`/`2a25`
+    bricks, `2a73` brick hit, `2b0b`/`2b49` bounces, `2bec` bat,
+    `2cd3`/`2d0a` barrier and loss, `3970`/`3933` split, `2e2b` speed-up.
+  - `233b`/`2493` icons fall and catch, `22be`/`22fe` icon spawn, `23d0` icon
+    animation.
+  - `2298`/`2222`/`2255` lasers, `21e0`/`220a` laser fire.
+  - `2dbc` bat movement, `3c1b` demo bat AI.
+  - `5b26`/`5bbd` brick flash, `5ee1`/`5f79` score count-up and extra ball,
+    `5e65`/`5e83`/`3ad1` bonus letters.
+  - The icon handlers in table `0xc4c` (item 9).
+- Tick order, exactly as the original (drawing calls left out):
+  - **Demo loop `3bbd`**, per tick: `phase = (phase + 1) % 3`; `233b` icons;
+    `3c1b` bat AI; `2e09` balls and speed-up; `23d0` icon animation; `5b26`
+    flash; then the trace record. The demo does **not** run keys (`4f53`), bat
+    input (`2dbc`), lasers (`2298`), the barrier drawing (`5be5`), the letter
+    panel (`5e65`), the score count-up (`5ee1`) or sound. It runs 1024 ticks.
+    Note: the decompiler shows the loop condition wrongly; the asm (`3c02`) is
+    `loope` on "no key pressed".
+  - **Play loop `3658`**, per tick: phase; `4f53` keys (action/Esc/F10/P via
+    table `0x113`); `233b`; `2dbc`; `2e09`; `23d0`; `2298`; `5b26`; `5e65`;
+    `5ee1`; then the record. Then: Escape → `36fd` (settle) and return 2;
+    bricks == 0 or skip → sound `0xCDE`, `36fd`, return 1; balls == 0 →
+    sound `0xCC5`, `36fd`, return 0.
+- Starting a demo level (`3b69` → `33b7` → `3b94`):
+  1. Load level `L` from the list at `0x775` (pointer `0xcece`, wraps
+     `0x77f → 0x775`) into the grid and attrs. Set the level digits. Count the
+     bricks that aren't `0` or `0x1C`.
+  2. `3863` resets the level state (skip, letters, divider, icon dividers,
+     timer 0x600, split, barrier, flash count). It does **not** reset phase or
+     pending points.
+  3. `3904` bat: x 216, width 6, maxX 0x1a0, mode 0.
+  4. `38e0` ball: slot 0, x 237, y 304, dx 2, dy −2, counter 0, flags 1.
+  5. Then `0xd256 = 0`, `0xced0 = 1` (demo: icons aren't applied).
+
+### Step 3 — headless replay of the demo (rest of V4)
+
+- `./build/paranoid --replay tests/reference/demo.trace.gz --trace /tmp/ours.trace`
+  runs without a window: no `InitWindow`, no textures, no audio, no drawing.
+  It runs the 10 demo levels in list order, 1024 ticks each, and writes one
+  record per tick.
+- **Seeding:** phase carries over between loops, and the title and high-score
+  screens (which aren't traced) also advance it. So at the start of each
+  demo-level run, set `phase = (first_record.phase + 2) % 3`, i.e. the value
+  before that run's first tick. Pending points start at 0 and carry across
+  demo levels; they are never added to the score in the demo.
+- Run `tools/trace_diff.py` until all records 0–10239 match. Then add the
+  CTest test, which **skips** when the trace file is missing (TODO V4).
+
+### Step 4 — switch the game over
+
+- Drive the play state from `sim` at a fixed 70 Hz accumulator.
+- Draw from `OrigState` in `draw.cpp`: 8×6 ball sprite, 3×8 laser, the 1-px
+  barrier at y = 335, the bat at y = 329 (items 4, 8, 30).
+- Delete the old float code in `game.cpp`.
+- Keep the remake's extra controls (arrow keys, `-l`) until the user decides.
+- The 120-tick wait at the start of a life (`3610`/`3b4c`) and the settle
+  phase (`36fd`, item 28) belong to the play flow.
+
+### Step 5 — tick the TODO
+
+Tick items 1–11, 12, 13, 28 and 29 with "Done:" notes, each one only after
+the trace confirms it. Items the demo can't exercise (lasers, sticky bat,
+most icons, losing a life) stay unticked until play traces exist (V3; a person
+has to record them with `tools/run_original.sh --trace`). Say so in their
+notes.
+
+## Facts learned this session that aren't obvious
+
+- The original is deterministic. Two runs of demo level 02 produced the same
+  game state.
+- `level` (`0xd24f`) isn't set in the demo; use `level_digits` (`0xd3a8`).
+- One tick can break two bricks at once: in demo level 02, tick 62 breaks
+  col 10 and col 11 together (item 4).
+- The trace records are taken just before the page flip, so they show the
+  state after that tick's update.
+- `PARTRACE.COM` is rebuilt automatically if it is missing from
+  `tests/capture/`.

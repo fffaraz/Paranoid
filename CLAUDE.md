@@ -42,6 +42,9 @@ The game loads `BITMAPS.PAR`, `FONTS.PAR` and `LEVELS.PAR` from `.`,
 
 ## How work is organised
 
+**Start with `NEXT.md`**: it is the handoff from the last session and says
+what to do next.
+
 `TODO.md` is the work list. Work on one item at a time:
 
 1. Read the item and its addresses, and check them in `PARANOID.asm` /
