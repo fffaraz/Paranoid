@@ -124,3 +124,4 @@ writes `HiScores.PAR`, and the script keeps that in a scratch copy.
   the bonus-letter bugs (item 32) follow it.
 - Pause matches the original (no banner, only P resumes).
 - The arrow keys, `-l N` and the resizable window stay as remake additions.
+- The F10 exit screen uses the game's 8x14 font with the boxes drawn as lines.

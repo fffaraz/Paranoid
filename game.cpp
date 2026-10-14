@@ -630,3 +630,13 @@ int TitleTicks()
 {
     return title_ticks;
 }
+
+bool AnyBiosKey()
+{
+    return BiosKey() != 0;
+}
+
+void SaveHighScores()
+{
+    SaveTable();
+}

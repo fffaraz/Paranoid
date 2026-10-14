@@ -195,11 +195,17 @@ int main(int argc, char* argv[])
     }
     StartTitle();
 
-    while (!WindowShouldClose()) {
+    bool running = true;
+    while (running && !WindowShouldClose()) {
         // F10 quits from the attract loop, during play and after a key in the
-        // wait before a ball (see game.cpp); elsewhere it is just a key.
-        if (quit_requested)
-            break;
+        // wait before a ball (see game.cpp); elsewhere it is just a key. 3c95
+        // then saves the high-score table (34d7) and shows the registration
+        // screen until a key (4f26).
+        if (quit_requested && state != STATE_EXIT) {
+            quit_requested = false;
+            SaveHighScores();
+            state = STATE_EXIT;
+        }
 
         const float dt = GetFrameTime();
 
@@ -245,6 +251,10 @@ int main(int argc, char* argv[])
         case STATE_DEMO:
             dispatch(UpdateDemo(dt), STATE_HISCORES);
             break;
+        case STATE_EXIT:
+            if (AnyBiosKey())
+                running = false;
+            break;
         case STATE_HISCORES:
             dispatch(UpdateHighScoreScreen(dt), STATE_DEMO);
             break;
@@ -281,6 +291,9 @@ int main(int argc, char* argv[])
             break;
         case STATE_DEMO:
             DrawDemo();
+            break;
+        case STATE_EXIT:
+            DrawExitScreen();
             break;
         case STATE_HISCORES:
             DrawHighScoreScreen(HighScoreBallsShown());
@@ -333,6 +346,9 @@ int main(int argc, char* argv[])
         DrawTexturePro(game_screen.texture, { 0, 0, 640, -350 }, destination, { 0, 0 }, 0, WHITE);
         EndDrawing();
     }
+    // Closing the window skips the registration screen but still saves.
+    if (state != STATE_EXIT)
+        SaveHighScores();
     UnloadRenderTexture(page_screen);
     UnloadRenderTexture(game_screen);
     CloseAudioDevice();

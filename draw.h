@@ -44,6 +44,8 @@ void DrawInfoPage(int page);
 
 // The title screen (6367) after `ticks` ticks of its loop.
 void DrawTitleScreen(int ticks);
+// The registration screen shown when F10 quits (4f26).
+void DrawExitScreen();
 struct PlayView;
 struct OrigState;
 void DrawPlay(const PlayView& view);

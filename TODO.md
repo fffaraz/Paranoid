@@ -43,6 +43,8 @@ Decided by the user:
   does nothing while paused.
 - **Kept as remake additions:** the arrow keys (besides Shift), the `-l N`
   start-level switch and the resizable window.
+- **The F10 exit screen (item 31) uses the game's own 8x14 font**, with the
+  box borders drawn as double lines; no CP437 font is bundled.
 
 **Still open — ask the user before choosing, and don't pick a default:**
 - Defaults for the display: 4:3 aspect on or off (V7). The tick rate is
@@ -1453,7 +1455,7 @@ game over, and of the 0-bricks game of item 24, is pixel-identical,
 including the score counting up; the game-over screen of item 16 differs in
 0 pixels. Not seen on the original's screen yet: collected BONUS letters.
 
-### [ ] 31. F10 shows the registration screen before quitting
+### [x] 31. F10 shows the registration screen before quitting
 
 **Original:** F10 quits from the attract loop (`3c95`) and during play
 (`4f53` → table `0x113` → `3c95`; also `3cdc`). Before exiting it:
@@ -1506,6 +1508,20 @@ draws this screen with an 8×14 or 8×16 text font on a black background (the
 game fonts have no box characters, so either draw the boxes as lines or bundle
 a CP437 font), waits for a key, then closes. The window close button should
 skip the screen but still save.
+
+**Done** (the user chose the game's font with the boxes drawn as lines).
+Where F10 quits (the attract dispatcher, the play loop's key table, `3cdc`
+after the wait before a ball), `main.cpp` saves the high-score table
+(`SaveHighScores`, `34d7`), shows `STATE_EXIT`, and closes on the next key
+the BIOS would see. `DrawExitScreen` (`draw.cpp`) draws the 24 rows decoded
+from `0x1b9f` in 8x14 cells, which fill the 640x350 screen exactly: white on
+black, with rows 2-20, cols 11-68 in yellow on blue as `4ed0` does (so cols
+10 and 69 inside the box stay black, as on the original's screen); the
+double-line box pieces are drawn as lines and `£` as a small glyph; the
+rest is the game's medium font (lowercase as its small capitals). Closing
+the window skips the screen but still saves. Checked by eye against the
+original's screen (captured from DOSBox-X in text mode): same layout and
+colours. Not pixel-identical by design.
 
 ### [ ] 32. Bonus-letter bugs in the original (decide first)
 

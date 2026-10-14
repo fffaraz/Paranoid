@@ -523,6 +523,109 @@ static void DrawSmallText(const char* text, int x, int y, Color colour)
 // The title scroller's text, 0x3a5..0x522 in the COM file.
 static const char SCROLL_TEXT[] = "* - * - * - * - * - * - * - * - * - * -   The Bit Bucket Brothers proudly present Paranoid   ...    Chief executive in charge of programming - Ben North   ...   Chief executive in charge of graphics - Tom North   ...   Program code production - Ben North   ...   Graphics design - Tom North   ...   Additional programming - Ben North   ...   Additional graphics - Tom North         ";
 
+// One CP437 character of the exit screen in an 8x14 cell: the double-line box
+// pieces as lines, the pound sign as a small glyph, the rest in the game's
+// medium font (the user chose this over bundling a VGA font).
+static void DrawExitChar(uint8_t c, int x, int y, Color fg)
+{
+    auto h = [&](int x1, int x2, int row) { DrawRectangle(x + x1, y + row, x2 - x1 + 1, 1, fg); };
+    auto v = [&](int col, int y1, int y2) { DrawRectangle(x + col, y + y1, 1, y2 - y1 + 1, fg); };
+    // Lines at columns 2 and 5 and rows 5 and 8 of the cell.
+    switch (c) {
+    case 0xba: // ║
+        v(2, 0, 13), v(5, 0, 13);
+        return;
+    case 0xcd: // ═
+        h(0, 7, 5), h(0, 7, 8);
+        return;
+    case 0xc9: // ╔
+        h(2, 7, 5), v(2, 5, 13), h(5, 7, 8), v(5, 8, 13);
+        return;
+    case 0xbb: // ╗
+        h(0, 5, 5), v(5, 5, 13), h(0, 2, 8), v(2, 8, 13);
+        return;
+    case 0xc8: // ╚
+        v(2, 0, 8), h(2, 7, 8), v(5, 0, 5), h(5, 7, 5);
+        return;
+    case 0xbc: // ╝
+        v(5, 0, 8), h(0, 5, 8), v(2, 0, 5), h(0, 2, 5);
+        return;
+    case 0xb9: // ╣
+        v(5, 0, 13), v(2, 0, 5), v(2, 8, 13), h(0, 2, 5), h(0, 2, 8);
+        return;
+    case 0xcc: // ╠
+        v(2, 0, 13), v(5, 0, 5), v(5, 8, 13), h(5, 7, 5), h(5, 7, 8);
+        return;
+    case 0x9c: { // £
+        static const char* glyph[9] = { "..###...", ".#...#..", ".#......", ".#......", "####....", ".#......", ".#......", ".#....#.", "#######." };
+        for (int r = 0; r < 9; r++)
+            for (int col = 0; col < 8; col++)
+                if (glyph[r][col] == '#')
+                    DrawRectangle(x + col, y + 2 + r, 1, 1, fg);
+        return;
+    }
+    default: {
+        const char text[2] = { char(c), 0 };
+        DrawTextEGAMedium(text, x, y, fg);
+        return;
+    }
+    }
+}
+
+// 3c95 -> 4f26: the registration screen shown when F10 quits. 4ed0 writes
+// the rows at 0x1b9f (stored bit-inverted) from row 1, col 1 in white on
+// black (attribute 0x0f), then makes rows 2-20, cols 11-68 yellow on blue
+// (0x1e). The rest of the 80x25 screen is blank (0x07). Each 8x14 cell fills
+// the 640x350 screen exactly.
+void DrawExitScreen()
+{
+    static const char* const rows[] = {
+    "        \xc9" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xbb" "",
+    "        \xba" "                                                            \xba" "",
+    "      \xc9" "\xcd" "\xb9" "  Paranoid is shareware.  If you continue to play Paranoid  \xcc" "\xcd" "\xbb" "",
+    "      \xba" " \xba" "  for more than its trial period of one month, you must     \xba" " \xba" "",
+    "    \xc9" "\xcd" "\xb9" " \xba" "  pay a \x9c" "10 registration fee.  This can be in the form of   \xba" " \xcc" "\xcd" "\xbb" "",
+    "    \xba" " \xba" " \xba" "  a cheque or Postal Order made payable to Ben North; no    \xba" " \xba" " \xba" "",
+    "  \xc9" "\xcd" "\xb9" " \xba" " \xba" "  cash, postage stamps, or credit cards please.  The Bit    \xba" " \xba" " \xcc" "\xcd" "\xbb" "",
+    "  \xba" " \xba" " \xba" " \xba" "  Bucket Brothers can be contacted at                       \xba" " \xba" " \xba" " \xba" "",
+    "\xc9" "\xcd" "\xb9" " \xba" " \xba" " \xba" "                                                            \xba" " \xba" " \xba" " \xcc" "\xcd" "\xbb" "",
+    "\xba" " \xba" " \xba" " \xba" " \xba" "             The Bit Bucket Brothers,                       \xba" " \xba" " \xba" " \xba" " \xba" "",
+    "\xba" " \xba" " \xba" " \xba" " \xba" "             \"Amaroo\", Weir Lane, Hanwood,                  \xba" " \xba" " \xba" " \xba" " \xba" "",
+    "\xba" " \xba" " \xba" " \xba" " \xba" "             Shrewsbury, Shropshire.  SY5 8JY.              \xba" " \xba" " \xba" " \xba" " \xba" "",
+    "\xc8" "\xcd" "\xb9" " \xba" " \xba" " \xba" "                                                            \xba" " \xba" " \xba" " \xcc" "\xcd" "\xbc" "",
+    "  \xba" " \xba" " \xba" " \xba" "  Please mark the envelope \"Paranoid\".                      \xba" " \xba" " \xba" " \xba" "",
+    "  \xc8" "\xcd" "\xb9" " \xba" " \xba" "                                                            \xba" " \xba" " \xcc" "\xcd" "\xbc" "",
+    "    \xba" " \xba" " \xba" "  When you register this game, not only will you be free    \xba" " \xba" " \xba" "",
+    "    \xc8" "\xcd" "\xb9" " \xba" "  from guilt, you will receive a registered copy of the     \xba" " \xcc" "\xcd" "\xbc" "",
+    "      \xba" " \xba" "  game, another thirty levels of ball-bouncing fun, a       \xba" " \xba" "",
+    "      \xc8" "\xcd" "\xb9" "  level designer, and cut-price updates when available.     \xcc" "\xcd" "\xbc" "",
+    "        \xba" "                                                            \xba" "",
+    "        \xc8" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xcd" "\xbc" "",
+    "",
+    "",
+    "Press a key.",
+    };
+    DrawRectangle(0, 0, 640, 350, EGA_PALETTE[0]);
+    for (int r = 0; r < int(sizeof(rows) / sizeof(*rows)); r++) {
+        const int row = r + 1;
+        for (int i = 0; rows[r][i]; i++) {
+            const int col = i + 1;
+            const bool recoloured = row >= 2 && row <= 20 && col >= 11 && col <= 68;
+            const int x = col * 8, y = row * 14;
+            if (recoloured)
+                DrawRectangle(x, y, 8, 14, EGA_PALETTE[1]);
+            const uint8_t c = uint8_t(rows[r][i]);
+            if (c != ' ')
+                DrawExitChar(c, x, y, EGA_PALETTE[recoloured ? 14 : 15]);
+        }
+        // Cells past the end of a row are still recoloured.
+        for (int col = 1 + int(strlen(rows[r])); row >= 2 && row <= 20 && col <= 68; col++) {
+            if (col >= 11)
+                DrawRectangle(col * 8, row * 14, 8, 14, EGA_PALETTE[1]);
+        }
+    }
+}
+
 void DrawTitleScreen(int ticks)
 {
     // 624e: the boxes; 6299: the PARANOID box, the large title (glyphs from

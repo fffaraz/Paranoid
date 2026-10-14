@@ -14,7 +14,8 @@ enum GameState { STATE_TITLE,
     STATE_INFO,
     STATE_PLAY,
     STATE_HISCORES, // the attract loop's high-score screen (4ba7)
-    STATE_DEMO }; // the attract loop's demo level (3b69)
+    STATE_DEMO, // the attract loop's demo level (3b69)
+    STATE_EXIT }; // the registration screen after F10 (3c95)
 
 // A message shown in the play state (44ac).
 enum class Message { None,
@@ -37,6 +38,10 @@ extern OrigState orig; // the original's memory, see sim.h
 extern bool quit_requested; // F10 during play
 
 void InitGame(const std::array<Level, LEVEL_COUNT>& levels);
+// A key the BIOS would see (not Shift, Ctrl, Alt) since the last call.
+bool AnyBiosKey();
+// Write the high-score table to HiScores.PAR (34d7).
+void SaveHighScores();
 // Take the keys from the original's key table (0xd41d), after /K changed it.
 void UseKeyTable();
 void StartGame(int level); // level 1..30
