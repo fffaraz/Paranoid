@@ -4,3 +4,4 @@ build/
 build-*/
 tests/capture/
 tests/reference/*.trace.gz
+/HiScores.PAR

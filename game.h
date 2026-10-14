@@ -18,7 +18,8 @@ enum GameState { STATE_TITLE,
 enum class Message { None,
     LevelIntro, // "Level xx" before each level (37db)
     GameOver, // over the playfield after the last life (3ab5)
-    Ending }; // over the playfield after level 30 (3caf)
+    Ending, // over the playfield after level 30 (3caf)
+    NewHighScore }; // over the last message when the score makes the table (4882)
 
 constexpr int PLAY_ROWS = 19;
 constexpr int PLAY_COLS = 14;
@@ -47,3 +48,7 @@ PlayView CurrentView();
 // The message on screen, if any. step is its step for DrawMessage: ticks
 // since its box started opening (0 or less: not yet).
 Message CurrentMessage(int& step);
+// The finished message still on screen under the current one.
+Message MessageBelow();
+// While a name is typed into the high-score table: its rank (1..10); else 0.
+int NameEntryRank();

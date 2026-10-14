@@ -27,6 +27,7 @@ The game loads `BITMAPS.PAR`, `FONTS.PAR` and `LEVELS.PAR` from `.`,
 - `game.h` / `game.cpp`: the play flow around `sim` at 70 ticks per second
   (life wait, play, settle, next level) and the key mapping; `UpdatePlay`.
 - `replay.h` / `replay.cpp`: headless `--replay` of a demo trace through `sim`.
+- `hiscore.h` / `hiscore.cpp`: `HiScores.PAR` load/save and the default table.
 - `draw.h` / `draw.cpp`: EGA palette, textures, text, `DrawTitleScreen`,
   `DrawPlay` (draws from `OrigState`).
 - `main.cpp`: start-up, the state machine and the simple screens.
@@ -118,3 +119,7 @@ writes `HiScores.PAR`, and the script keeps that in a scratch copy.
 
 - Screen transitions (TODO item 24) are wanted.
 - The remake reads and writes `HiScores.PAR` in the current working directory.
+- The original's bugs are reproduced behind `faithful_bugs` (on by default);
+  the bonus-letter bugs (item 32) follow it.
+- Pause matches the original (no banner, only P resumes).
+- The arrow keys, `-l N` and the resizable window stay as remake additions.

@@ -259,6 +259,70 @@ void DrawEnding(int step)
     DrawMessage(lines, ENDING_LINES, 42, true, step);
 }
 
+void DrawNewHighScore(int step)
+{
+    // 4882: the message at 0x597, over the playfield and the last message.
+    const char* lines[7] = { "", " Congratulations !!", "", "   New High Score", "", " Congratulations !!", "" };
+    DrawMessage(lines, 7, 20, true, step);
+}
+
+// 3ec7: digits up to 0xff in the medium font, leading zeros as spaces (the
+// last digit is always drawn).
+static void DrawDigits(uint16_t a, int col, int y, Color colour)
+{
+    bool leading = true;
+    for (; orig.b(a) != 0xff; a++, col++) {
+        const uint8_t digit = orig.b(a);
+        if (digit != 0 || orig.b(uint16_t(a + 1)) == 0xff)
+            leading = false;
+        if (leading)
+            continue;
+        const char text[2] = { char('0' + digit), 0 };
+        DrawTextEGAMedium(text, col * 8, y, colour);
+    }
+}
+
+void DrawHighScoreTable()
+{
+    // 4a3a: the screen (4b36), the title (4b7b) and the table (4a53).
+    DrawRectangle(0, 0, 640, 350, EGA_PALETTE[0]);
+    DrawRaisedBox(0, 0, 639, 349);
+    DrawSunkenBox(16, 12, 623, 337);
+    DrawRaisedBox(48, 38, 591, 85);
+    DrawRaisedBox(152, 112, 487, 311);
+    // "BEST BALL BOUNCERS": large-font glyphs from 0x700, 11 = space, colour 4,
+    // from col 13 at y = 44, 3 cols apart.
+    static const uint8_t title[] = { 0, 1, 2, 3, 11, 0, 4, 5, 5, 11, 0, 6, 7, 8, 9, 1, 10, 2 };
+    for (int i = 0; i < (int)sizeof(title); i++) {
+        if (title[i] != 11)
+            DrawTexture(tex_font_large[title[i]], (13 + 3 * i) * 8, 44, EGA_PALETTE[4]);
+    }
+    DrawTextEGAMedium("Name               Level     Score", 23 * 8, 128, EGA_PALETTE[1]);
+    for (int row = 0; row < 10; row++) {
+        const int y = 156 + row * 14;
+        char name[17] = {};
+        for (int i = 0; i < 16 && orig.b(uint16_t(addr::HISCORE_NAMES + row * 16 + i)); i++)
+            name[i] = char(orig.b(uint16_t(addr::HISCORE_NAMES + row * 16 + i)));
+        DrawTextEGAMedium(name, 23 * 8, y, EGA_PALETTE[0]);
+        DrawDigits(uint16_t(addr::HISCORE_LEVELS + row * 3), 44, y, EGA_PALETTE[0]);
+        DrawDigits(uint16_t(addr::HISCORE_SCORES + row * 7), 51, y, EGA_PALETTE[0]);
+    }
+}
+
+void DrawNameInput(int rank)
+{
+    // 48c0 / 4f7f: the typed characters in yellow on the rank's row, and the
+    // cursor, an 8-px yellow line under the next character's cell.
+    const int y = 142 + rank * 14;
+    const uint8_t max = orig.b(addr::NAME_INPUT), length = orig.b(addr::NAME_INPUT + 1);
+    char name[17] = {};
+    for (int i = 0; i < length && i < 16; i++)
+        name[i] = char(orig.b(uint16_t(addr::NAME_INPUT + 2 + i)));
+    DrawTextEGAMedium(name, 23 * 8, y, EGA_PALETTE[14]);
+    const int cursor = 23 + (length < max ? length : max - 1);
+    DrawRectangle(cursor * 8, y + 14, 8, 1, EGA_PALETTE[14]);
+}
+
 void DrawTitleScreen(void)
 {
     DrawRectangle(0, 0, 640, 280, EGA_PALETTE[7]);

@@ -173,6 +173,16 @@ int main(int argc, char* argv[])
             } else if (message == Message::Ending) {
                 DrawPlay(CurrentView());
                 DrawEnding(step);
+            } else if (message == Message::NewHighScore) {
+                DrawPlay(CurrentView());
+                if (MessageBelow() == Message::Ending)
+                    DrawEnding(1000);
+                else
+                    DrawGameOver(1000);
+                DrawNewHighScore(step);
+            } else if (NameEntryRank() > 0) {
+                DrawHighScoreTable();
+                DrawNameInput(NameEntryRank());
             } else {
                 DrawPlay(CurrentView());
             }

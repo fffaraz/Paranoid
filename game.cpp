@@ -1,10 +1,12 @@
 #include "game.h"
 
 #include "draw.h"
+#include "hiscore.h"
 
 #include <raylib.h>
 
 #include <algorithm>
+#include <stdio.h>
 
 Sounds sounds;
 GameState state = STATE_TITLE;
@@ -16,15 +18,34 @@ namespace {
 constexpr int TICK_HZ = 70;
 constexpr int LIFE_WAIT_TICKS = 120; // 3610 -> 3b4c
 constexpr int NEXT_LEVEL_WAIT_TICKS = 30; // 38b7
-constexpr int MESSAGE_WAIT_TICKS = 240; // 3b29 after "Level xx" and "Game Over"
+// Lines of each message and how long it waits for a key after its text
+// appears (3b29; 0: no limit, 4f72).
+struct MessageSpec {
+    int lines, wait_ticks;
+};
+MessageSpec Spec(Message m)
+{
+    switch (m) {
+    case Message::GameOver:
+        return { 3, 240 }; // 0x8c0
+    case Message::Ending:
+        return { 9, 0 }; // 0x8d7
+    case Message::NewHighScore:
+        return { 7, 200 }; // 0x597
+    default:
+        return { 3, 240 }; // "Level xx", 0x9b2
+    }
+}
 
-enum class Phase { Message, LifeWait, Play, Settle, NextLevelWait };
+enum class Phase { Message, LifeWait, Play, Settle, NextLevelWait, NameEntry };
 
 Phase phase = Phase::LifeWait;
 int wait_ticks = 0;
 Message message = Message::None;
+Message message_below = Message::None; // a finished message still on screen
 int message_step = 0; // ticks since the message phase started
 int message_lead = 0; // ticks before the message's box starts
+int hiscore_rank = 0; // the row being named
 int settle_step = 0;
 PlayResult result = PlayResult::Playing;
 float tick_time = 0.0f;
@@ -40,6 +61,7 @@ void PlaySimSounds()
 void ShowMessage(Message m, int lead_ticks)
 {
     phase = Phase::Message;
+    message_below = message;
     message = m;
     message_step = 0;
     message_lead = lead_ticks;
@@ -52,18 +74,36 @@ void StartLevel()
 }
 
 // 44ac: the box opens one step per tick and the text appears on the next
-// tick. Then the keyboard is flushed and the game waits for a key: at most
-// 240 ticks after "Level xx" and "Game Over" (3b29), without a limit after the
-// ending (4f72).
+// tick. Then the keyboard is flushed and the game waits for a key, for at
+// most the message's wait.
 bool MessageFinished()
 {
-    const int lines = message == Message::Ending ? ENDING_LINES : 3;
-    const int shown = message_lead + MessageOpenTicks(lines) + 1; // the tick the text appears
+    const MessageSpec spec = Spec(message);
+    const int shown = message_lead + MessageOpenTicks(spec.lines) + 1; // the tick the text appears
     if (++message_step <= shown)
         return false; // keys pressed until now are flushed
     if (key_pressed)
         return true;
-    return message != Message::Ending && message_step >= shown + MESSAGE_WAIT_TICKS;
+    return spec.wait_ticks > 0 && message_step >= shown + spec.wait_ticks;
+}
+
+// 4882, after "Game Over" or the ending: a score that makes the table gets
+// the "New High Score" message and the name entry.
+void CheckHighScore()
+{
+    hiscore_rank = SimEnterHighScore(orig);
+    if (hiscore_rank == 11) {
+        // TODO item 20: the attract loop's high-score screen comes next.
+        state = STATE_TITLE;
+        return;
+    }
+    ShowMessage(Message::NewHighScore, 0);
+}
+
+void SaveTable()
+{
+    if (!SaveHiScores(&orig.mem[addr::HISCORE_SCORES]))
+        printf("WARNING: CAN'T WRITE HiScores.PAR\n");
 }
 
 void StartLife()
@@ -176,12 +216,18 @@ void Tick()
         if (message == Message::LevelIntro) {
             SimLevelStart(orig);
             StartLife();
+            message = Message::None;
+        } else if (message == Message::NewHighScore) {
+            // 4a3a draws the table, then 48c0 takes the name.
+            phase = Phase::NameEntry;
+            SimStartNameInput(orig);
+            message = message_below = Message::None;
         } else {
-            // TODO item 19: the high-score check (4882) comes here.
-            state = STATE_TITLE;
+            CheckHighScore();
         }
-        message = Message::None;
         break;
+    case Phase::NameEntry:
+        break; // typed keys are handled per frame, see UpdatePlay
     case Phase::NextLevelWait:
         if (--wait_ticks > 0)
             break;
@@ -196,6 +242,7 @@ void Tick()
 void InitGame(const std::array<Level, LEVEL_COUNT>& levels)
 {
     SimInit(orig, levels);
+    LoadHiScores(&orig.mem[addr::HISCORE_SCORES]); // 3475 at start-up
 }
 
 void StartGame(int level)
@@ -225,8 +272,8 @@ PlayView CurrentView()
         if (message == Message::GameOver) {
             view.movers = false;
             view.icons = message_step < message_lead; // 3ab5 erases them
-        } else if (message == Message::Ending) {
-            view.movers = view.icons = false; // as the settle left them
+        } else if (message == Message::Ending || message == Message::NewHighScore) {
+            view.movers = view.icons = false;
         }
         break;
     default:
@@ -241,8 +288,34 @@ Message CurrentMessage(int& step)
     return phase == Phase::Message ? message : Message::None;
 }
 
+Message MessageBelow()
+{
+    return phase == Phase::Message ? message_below : Message::None;
+}
+
+int NameEntryRank()
+{
+    return phase == Phase::NameEntry ? hiscore_rank : 0;
+}
+
 void UpdatePlay(float dt)
 {
+    if (phase == Phase::NameEntry) {
+        // 4f7f reads BIOS keys, not ticks: characters, Backspace, Enter.
+        for (int c = GetCharPressed(); c != 0; c = GetCharPressed()) {
+            if (c < 0x80)
+                SimNameInputKey(orig, uint8_t(c));
+        }
+        if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE))
+            SimNameInputKey(orig, 8);
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
+            SimStoreName(orig, hiscore_rank);
+            SaveTable(); // 34d7
+            // TODO item 20: the attract loop's high-score screen comes next.
+            state = STATE_TITLE;
+        }
+        return;
+    }
     if (GetKeyPressed() != 0)
         key_pressed = true;
     PressKeys();

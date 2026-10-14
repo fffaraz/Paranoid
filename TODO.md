@@ -926,7 +926,7 @@ that is playing when P is pressed keeps sounding at its current pitch until
 the pause ends. The remake's sounds are pre-rendered and just finish. Doing
 this needs a sustained-tone sound path.
 
-### [ ] 19. High-score table: file, entry and name input
+### [x] 19. High-score table: file, entry and name input
 
 **File `HiScores.PAR`** (`3475` read, `34d7` write, `352f` create with
 defaults): 260 bytes, in this order:
@@ -960,7 +960,9 @@ a warning) if the write fails.
    - Enter (`0x0D`) finishes.
    - Characters `0x20..0x5F` and `a..z` are accepted (the font has lower case
      at `0xc364`). Anything else is ignored.
-   - When the name is full, more characters are ignored.
+   - When the name is full, a new character **replaces the 15th** (it is
+     stored at the last position and redrawn there; only the length stops
+     growing). (An earlier version of this note said they are ignored.)
    - The finished name is copied into the table row and NUL-terminated.
 5. Save (`34d7`).
 
@@ -972,7 +974,34 @@ a warning) if the write fails.
 **Remake:** nothing. Add `hiscore.cpp/.h` for load/save/insert and a name-entry
 state.
 
+**Done:** `hiscore.cpp` loads `HiScores.PAR` from the current directory at
+start-up into the original's memory at `0xd266..0xd369` (the file is those
+260 bytes), creates it with the default table from `0x5fc` if it is missing,
+and warns instead of failing on errors (`/HiScores.PAR` is in `.gitignore`).
+`sim.cpp` has the table logic on that memory: `SimEnterHighScore` (`4945`,
+`49c9`, `49ec`; a tie goes below the existing entry), and the name buffer at
+`0xd36a` (`SimStartNameInput`, `SimNameInputKey` = `4f7f`, `SimStoreName` =
+the end of `48c0`). `game.cpp`: after "Game Over" or the ending, a score that
+qualifies shows `Message::NewHighScore` over the previous message (200 ticks
+or a key), then the name entry: `DrawHighScoreTable` (`4a3a`: boxes, "BEST
+BALL BOUNCERS", table) with the name in yellow and the cursor; Enter stores
+the name and saves. Then the title (the original goes to its attract
+high-score screen, item 20). A score that doesn't qualify goes to the title
+at once. Checked against the original with a scratch copy of `PARANOID.COM`
+whose games start at 1000 points (`3a06` = 1) and `tools/grab_original.sh`
+(typing `x`s, `abc`, Enter): the "New High Score" box is pixel-identical
+over the game-over screen in the frame before it, at opening steps 3, 18,
+34, 50 and when finished; the name-entry screen is identical over the whole
+640×350 screen, empty and after each of the 7 typed characters (rank 9,
+level 1, 1070, the old 9th entry moved to 10th); and the original's first
+attract frame after Enter equals the remake's table with the stored name.
+Also checked: a missing file is created with exactly the default table.
+
 ### [ ] 20. High-score screen in the attract loop ("BEST BALL BOUNCERS")
+
+**Progress (item 19):** the static screen is done and matches the original
+pixel for pixel: `DrawHighScoreTable` in `draw.cpp` (`4a3a`). Still to do:
+the bouncing balls and the attract loop.
 
 **Original (`4ba7` → `4a3a` + `4abd`):**
 - Draws the table (item 19).

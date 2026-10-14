@@ -1273,6 +1273,64 @@ bool SimNextLevel(OrigState& s)
     return ++s.b(LEVEL) <= 30;
 }
 
+int SimEnterHighScore(OrigState& s)
+{
+    // 49c9: walk up from the last entry while it is lower than the score; a
+    // score equal to an entry goes below it.
+    int above = 10;
+    for (uint16_t entry = HISCORE_SCORES + 9 * 7; above > 0; entry -= 7, above--) {
+        if (fcn_4866_digits_ge(s, entry, SCORE))
+            break;
+    }
+    const int rank = above + 1;
+    if (rank == 11)
+        return rank;
+    // 49ec: move the entries from this rank down by one; the last drops off.
+    const int moved = 10 - rank;
+    std::memmove(&s.mem[HISCORE_SCORES + rank * 7], &s.mem[HISCORE_SCORES + (rank - 1) * 7], moved * 7);
+    std::memmove(&s.mem[HISCORE_NAMES + rank * 16], &s.mem[HISCORE_NAMES + (rank - 1) * 16], moved * 16);
+    std::memmove(&s.mem[HISCORE_LEVELS + rank * 3], &s.mem[HISCORE_LEVELS + (rank - 1) * 3], moved * 3);
+    // 4945: the score, the level and an empty name.
+    std::memcpy(&s.mem[HISCORE_SCORES + (rank - 1) * 7], &s.mem[SCORE], 6);
+    std::memcpy(&s.mem[HISCORE_LEVELS + (rank - 1) * 3], &s.mem[LEVEL_DIGITS], 2);
+    std::memset(&s.mem[HISCORE_NAMES + (rank - 1) * 16], 0, 16);
+    return rank;
+}
+
+void SimStartNameInput(OrigState& s)
+{
+    // 48c0 clears the buffer and allows 15 characters; 4f7f empties it.
+    std::memset(&s.mem[NAME_INPUT + 2], 0, 16);
+    s.b(NAME_INPUT) = 15;
+    s.b(NAME_INPUT + 1) = 0;
+}
+
+void SimNameInputKey(OrigState& s, uint8_t ascii)
+{
+    // 4f7f. The next character goes to index min(length, max - 1): when the
+    // name is full, a new character replaces the last one.
+    const uint8_t max = s.b(NAME_INPUT);
+    uint8_t& length = s.b(NAME_INPUT + 1);
+    if (ascii == 8) {
+        if (length > 0)
+            length--;
+        return;
+    }
+    if (!((ascii >= 0x20 && ascii <= 0x5f) || (ascii >= 'a' && ascii <= 'z')))
+        return;
+    s.b(uint16_t(NAME_INPUT + 2 + (length < max ? length : max - 1))) = ascii;
+    if (length < max)
+        length++;
+}
+
+void SimStoreName(OrigState& s, int rank)
+{
+    // 48c0: copy the typed characters into the table and end the buffer.
+    const uint8_t length = s.b(NAME_INPUT + 1);
+    std::memcpy(&s.mem[HISCORE_NAMES + (rank - 1) * 16], &s.mem[NAME_INPUT + 2], length);
+    s.b(uint16_t(NAME_INPUT + 2 + length)) = 0;
+}
+
 void ToTraceRecord(const OrigState& s, uint8_t out[TRACE_RECORD_SIZE], int loop, uint32_t tick)
 {
     // Blocks in the order of trace_format.BLOCKS.

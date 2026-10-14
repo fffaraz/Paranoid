@@ -31,6 +31,11 @@ void DrawLevelIntro(int level, int step);
 void DrawGameOver(int step);
 constexpr int ENDING_LINES = 9;
 void DrawEnding(int step);
+void DrawNewHighScore(int step);
+// The high-score screen without its bouncing balls (4a3a), and the name being
+// typed on row `rank` (1..10).
+void DrawHighScoreTable();
+void DrawNameInput(int rank);
 
 void DrawTitleScreen(void);
 struct PlayView;

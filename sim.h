@@ -56,6 +56,10 @@ constexpr uint16_t LETTER_NEXT = 0xd262;
 constexpr uint16_t LETTERS_IN_ORDER = 0xd263;
 constexpr uint16_t SKIP_LEVEL = 0xd264;
 constexpr uint16_t ESCAPE = 0xd265;
+constexpr uint16_t HISCORE_SCORES = 0xd266; // 10 x 6 digits + 0xff
+constexpr uint16_t HISCORE_NAMES = 0xd2ac; // 10 x 16 bytes, NUL-terminated
+constexpr uint16_t HISCORE_LEVELS = 0xd34c; // 10 x 2 digits + 0xff
+constexpr uint16_t NAME_INPUT = 0xd36a; // max length, length, 16 characters
 constexpr uint16_t SCORE_DIV = 0xd398;
 constexpr uint16_t PENDING_POINTS = 0xd399;
 constexpr uint16_t SCORE = 0xd39b; // 6 decimal digits, most significant first
@@ -130,6 +134,16 @@ PlayResult SimPlayResult(OrigState& s);
 bool SimSettleStep(OrigState& s, int& step); // step starts at 0
 bool SimLoseLife(OrigState& s); // false when no lives are left
 bool SimNextLevel(OrigState& s); // false after level 30
+
+// High-score table (4882). SimEnterHighScore puts the score and level into
+// the table and returns the rank, 1..10, or 11 if the score doesn't qualify
+// (4945). The name is then typed into the buffer at NAME_INPUT:
+// SimStartNameInput, SimNameInputKey for each character or backspace (8)
+// (4f7f), and SimStoreName when Enter is pressed (48c0).
+int SimEnterHighScore(OrigState& s);
+void SimStartNameInput(OrigState& s);
+void SimNameInputKey(OrigState& s, uint8_t ascii);
+void SimStoreName(OrigState& s, int rank);
 
 // One record in the layout of tools/trace_format.py. The display-page bytes
 // are written as zeros.
