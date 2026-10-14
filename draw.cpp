@@ -233,6 +233,13 @@ void DrawLevelIntro(int level, int step)
     DrawMessage(lines, 3, 14, false, step);
 }
 
+void DrawGameOver(int step)
+{
+    // 3ab5: the message at 0x8c0, over the playfield.
+    const char* lines[3] = { "", "   Game  Over   ", "" };
+    DrawMessage(lines, 3, 16, true, step);
+}
+
 void DrawTitleScreen(void)
 {
     DrawRectangle(0, 0, 640, 280, EGA_PALETTE[7]);
@@ -286,7 +293,7 @@ void LoadGameTextures(const BitMaps& bitmaps, const Fonts& fonts)
         tex_font_large[i] = CreateTextureFromBitmask(&fonts.font_large[i][0][0], FONT_LARGE_W, FONT_LARGE_H, WHITE);
 }
 
-void DrawPlay()
+void DrawPlay(const PlayView& view)
 {
     // The original playfield occupies the left 480 pixels, with a separate
     // gray control panel on the right (rather than a centered playfield).
@@ -339,7 +346,7 @@ void DrawPlay()
 
     // Icons (5919): 16x12 at (x*8, y), cut off below y = 337.
     for (uint16_t i = addr::ICONS; i < addr::ICONS + 5 * 9; i += 9) {
-        if (!orig.b(i + ICON_ACTIVE))
+        if (!view.icons || !orig.b(i + ICON_ACTIVE))
             continue;
         int x = orig.w(i + ICON_X) * 8, y = orig.w(i + ICON_Y);
         int h = 0x152 - y < ICON_FRAME_H ? 0x152 - y : ICON_FRAME_H;
@@ -353,37 +360,39 @@ void DrawPlay()
     if (orig.b(addr::BARRIER_DRAWN) & (shown_page ? 2 : 1))
         DrawRectangle(15, 335, 463 - 15 + 1, 1, EGA_PALETTE[15]);
 
-    // The DOS bat is four EGA scanlines tall, from y = 329. Its first and last
-    // lines leave one pixel clear at each end; the middle two span its full
-    // width.
-    int bat_x = orig.w(addr::BAT_X);
-    int bat_w = orig.b(addr::BAT_W) * 8;
-    DrawRectangle(bat_x + 1, 329, bat_w - 2, 1, WHITE);
-    DrawRectangle(bat_x, 330, bat_w, 2, WHITE);
-    DrawRectangle(bat_x + 1, 332, bat_w - 2, 1, WHITE);
+    if (view.movers) {
+        // The DOS bat is four EGA scanlines tall, from y = 329. Its first and
+        // last lines leave one pixel clear at each end; the middle two span
+        // its full width.
+        int bat_x = orig.w(addr::BAT_X);
+        int bat_w = orig.b(addr::BAT_W) * 8;
+        DrawRectangle(bat_x + 1, 329, bat_w - 2, 1, WHITE);
+        DrawRectangle(bat_x, 330, bat_w, 2, WHITE);
+        DrawRectangle(bat_x + 1, 332, bat_w - 2, 1, WHITE);
 
-    // Laser shots (5e23): 3x8 yellow, top-left at (x, y), cut off above the
-    // playfield.
-    for (uint16_t i = addr::LASERS; i < addr::LASERS + 4 * 16; i += 16) {
-        if (!(orig.w(i + LASER_ACTIVE) & 1))
-            continue;
-        int x = orig.w(i + LASER_X), y = orig.w(i + LASER_Y);
-        int top = y < BRICK_TOP ? BRICK_TOP : y;
-        if (y + 8 > top)
-            DrawRectangle(x, top, 3, y + 8 - top, EGA_PALETTE[14]);
-    }
+        // Laser shots (5e23): 3x8 yellow, top-left at (x, y), cut off above the
+        // playfield.
+        for (uint16_t i = addr::LASERS; i < addr::LASERS + 4 * 16; i += 16) {
+            if (!(orig.w(i + LASER_ACTIVE) & 1))
+                continue;
+            int x = orig.w(i + LASER_X), y = orig.w(i + LASER_Y);
+            int top = y < BRICK_TOP ? BRICK_TOP : y;
+            if (y + 8 > top)
+                DrawRectangle(x, top, 3, y + 8 - top, EGA_PALETTE[14]);
+        }
 
-    // Balls (564a): the 8x6 sprite at 0xa53, top-left at (x, y), rows below
-    // y = 337 cut off.
-    static const struct {
-        int left, width;
-    } ball_rows[6] = { { 2, 4 }, { 1, 6 }, { 0, 8 }, { 0, 8 }, { 1, 6 }, { 2, 4 } };
-    for (uint16_t i = addr::BALLS; i < addr::BALLS + 16 * 16; i += 16) {
-        if (!(orig.b(i + BALL_FLAGS) & BALL_ACTIVE))
-            continue;
-        int x = int16_t(orig.w(i + BALL_X)), y = int16_t(orig.w(i + BALL_Y));
-        for (int row = 0; row < 6 && y + row <= 337; row++)
-            DrawRectangle(x + ball_rows[row].left, y + row, ball_rows[row].width, 1, WHITE);
+        // Balls (564a): the 8x6 sprite at 0xa53, top-left at (x, y), rows below
+        // y = 337 cut off.
+        static const struct {
+            int left, width;
+        } ball_rows[6] = { { 2, 4 }, { 1, 6 }, { 0, 8 }, { 0, 8 }, { 1, 6 }, { 2, 4 } };
+        for (uint16_t i = addr::BALLS; i < addr::BALLS + 16 * 16; i += 16) {
+            if (!(orig.b(i + BALL_FLAGS) & BALL_ACTIVE))
+                continue;
+            int x = int16_t(orig.w(i + BALL_X)), y = int16_t(orig.w(i + BALL_Y));
+            for (int row = 0; row < 6 && y + row <= 337; row++)
+                DrawRectangle(x + ball_rows[row].left, y + row, ball_rows[row].width, 1, WHITE);
+        }
     }
 
     DrawTextEGA("SCORE", 548, 23, BLACK);

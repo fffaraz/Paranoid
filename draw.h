@@ -28,6 +28,8 @@ void DrawSunkenBox(int x1, int y1, int x2, int y2);
 int MessageOpenTicks(int lines);
 void DrawMessage(const char* const* lines, int count, int width, bool over_playfield, int step);
 void DrawLevelIntro(int level, int step);
+void DrawGameOver(int step);
 
 void DrawTitleScreen(void);
-void DrawPlay(void);
+struct PlayView;
+void DrawPlay(const PlayView& view);

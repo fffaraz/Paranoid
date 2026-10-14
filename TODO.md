@@ -840,7 +840,7 @@ starts on tick 274, like the original. Checked against the original with
 opening steps 7, 12, 22 and 28 are **pixel-identical** to the remake's
 frames. The scroll/bounce transition after it is item 24 (not done).
 
-### [ ] 16. Game-over sequence
+### [x] 16. Game-over sequence
 
 **Original (`3ab5`):** show message `0x8c0` (width 16, height 3,
 `"   Game  Over   "`, centred over the playfield, see item 15), wait 240 ticks or a key, then go to the
@@ -848,6 +848,22 @@ high-score check (item 19), then back to the attract loop.
 
 **Remake:** a separate `STATE_GAMEOVER` screen where Space restarts the game
 straight away (`main.cpp` ~120–129, `main.cpp` ~163–166). Replace it.
+
+**Done:** `STATE_GAMEOVER` is gone. After the last life `game.cpp` shows
+`Message::GameOver`: one tick in which `3ab5` erases the falling icons
+(`2451` on both pages, then a flip), then the message over the playfield
+(`DrawGameOver`, the same `44ac` box as item 15), then 240 ticks or a key,
+then the title screen. The high-score check (item 19) and the attract loop
+(item 20) go there later; there is a `TODO item 19` comment at that spot.
+Also found and done: the settle phase (`36fd`) erases the balls, bat and
+laser shots and doesn't draw them again, so from the first settle tick until
+the next life they aren't shown; icons are drawn again only if the level
+goes on (`PlayView` in `game.h`). Checked against the original with
+`tools/grab_original.sh`, a game played with no keys: the original and the
+remake reach game over with the same score (70) and bricks; the message box
+is pixel-identical in the frame before it, at opening steps 13 and 29 and
+when finished; the whole playfield is identical except for the big
+"PARANOID" lettering, which is item 30's known offset.
 
 ### [ ] 17. Ending message after level 30
 
@@ -1140,7 +1156,8 @@ flash and score steps (needs items 12 and 13).
 
 **Status (Step 5):** ported in `sim.cpp` and used by the game, but not ticked:
 it needs play traces (V3). The demo trace confirms nothing; the settle loop
-isn't traced. Ported as `SimSettleStep`, used by `game.cpp`.
+isn't traced. Ported as `SimSettleStep`, used by `game.cpp`. What the
+screen shows during it is done (item 16: balls, bat and shots erased).
 
 ### [ ] 29. What survives a lost life
 

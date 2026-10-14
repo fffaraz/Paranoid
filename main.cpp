@@ -141,12 +141,6 @@ int main(int argc, char* argv[])
         case STATE_PLAY:
             UpdatePlay(dt);
             break;
-        case STATE_GAMEOVER:
-            if (IsKeyPressed(KEY_SPACE)) {
-                StartGame(starting_level);
-                state = STATE_PLAY;
-            }
-            break;
         case STATE_WIN:
             if (IsKeyPressed(KEY_SPACE))
                 state = STATE_TITLE;
@@ -172,21 +166,24 @@ int main(int argc, char* argv[])
             DrawTextCenteredSmall("COLLECT B-O-N-U-S LETTERS IN ORDER FOR 500 POINTS", 240, EGA_PALETTE[10]);
             DrawTextCenteredSmall("PRESS SPACE TO RETURN", 300, EGA_PALETTE[8]);
             break;
-        case STATE_PLAY:
-            if (LevelIntroStep() >= 0)
-                DrawLevelIntro(orig.b(addr::LEVEL), LevelIntroStep());
-            else
-                DrawPlay();
+        case STATE_PLAY: {
+            int step = 0;
+            Message message = CurrentMessage(step);
+            if (message == Message::LevelIntro) {
+                DrawLevelIntro(orig.b(addr::LEVEL), step);
+            } else if (message == Message::GameOver) {
+                DrawPlay(CurrentView());
+                DrawGameOver(step);
+            } else {
+                DrawPlay(CurrentView());
+            }
             // Remake addition: a banner while the game is paused.
             if (orig.paused) {
                 DrawRectangle(0, 160, 640, 30, (Color) { 0, 0, 0, 200 });
                 DrawTextCenteredMedium("PAUSED", 165, EGA_PALETTE[14]);
             }
             break;
-        case STATE_GAMEOVER:
-            DrawTextEGA("GAME OVER", 280, 150, EGA_PALETTE[12]);
-            DrawTextEGA("PRESS SPACE", 260, 200, EGA_PALETTE[7]);
-            break;
+        }
         case STATE_WIN:
             DrawTextCenteredMedium("CONGRATULATIONS", 95, EGA_PALETTE[14]);
             DrawTextCenteredSmall("YOU HAVE COMPLETED ALL THIRTY LEVELS", 145, EGA_PALETTE[15]);

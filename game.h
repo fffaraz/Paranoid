@@ -13,8 +13,12 @@
 enum GameState { STATE_TITLE,
     STATE_INFO,
     STATE_PLAY,
-    STATE_GAMEOVER,
     STATE_WIN };
+
+// A message shown in the play state (44ac).
+enum class Message { None,
+    LevelIntro, // "Level xx" before each level (37db)
+    GameOver }; // over the playfield after the last life (3ab5)
 
 constexpr int PLAY_ROWS = 19;
 constexpr int PLAY_COLS = 14;
@@ -32,5 +36,14 @@ extern bool quit_requested; // F10 during play
 void InitGame(const std::array<Level, LEVEL_COUNT>& levels);
 void StartGame(int level); // level 1..30
 void UpdatePlay(float dt);
-// While the "Level xx" message shows: ticks since it started (from 0); else -1.
-int LevelIntroStep();
+// What DrawPlay shows of the moving things. The original erases them in
+// some phases without drawing them again.
+struct PlayView {
+    bool icons = true;
+    bool movers = true; // balls, bat and laser shots
+};
+PlayView CurrentView();
+
+// The message on screen, if any. step is its step for DrawMessage: ticks
+// since its box started opening (0 or less: not yet).
+Message CurrentMessage(int& step);

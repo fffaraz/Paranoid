@@ -16,13 +16,15 @@ namespace {
 constexpr int TICK_HZ = 70;
 constexpr int LIFE_WAIT_TICKS = 120; // 3610 -> 3b4c
 constexpr int NEXT_LEVEL_WAIT_TICKS = 30; // 38b7
-constexpr int LEVEL_INTRO_WAIT_TICKS = 240; // 382c -> 3b29
+constexpr int MESSAGE_WAIT_TICKS = 240; // 3b29 after "Level xx" and "Game Over"
 
-enum class Phase { LevelIntro, LifeWait, Play, Settle, NextLevelWait };
+enum class Phase { Message, LifeWait, Play, Settle, NextLevelWait };
 
 Phase phase = Phase::LifeWait;
 int wait_ticks = 0;
-int intro_step = 0; // ticks since the "Level xx" message started
+Message message = Message::None;
+int message_step = 0; // ticks since the message phase started
+int message_lead = 0; // ticks before the message's box starts
 int settle_step = 0;
 PlayResult result = PlayResult::Playing;
 float tick_time = 0.0f;
@@ -35,11 +37,29 @@ void PlaySimSounds()
     orig.sounds.clear();
 }
 
+void ShowMessage(Message m, int lead_ticks)
+{
+    phase = Phase::Message;
+    message = m;
+    message_step = 0;
+    message_lead = lead_ticks;
+}
+
 // 37db: the "Level xx" message, then the level.
 void StartLevel()
 {
-    phase = Phase::LevelIntro;
-    intro_step = 0;
+    ShowMessage(Message::LevelIntro, 0);
+}
+
+// 44ac + 3b29: the box opens one step per tick, the text appears on the next
+// tick, then the keyboard is flushed and the game waits 240 ticks or for a
+// key. Both messages that wait like this have 3 lines.
+bool MessageFinished()
+{
+    const int shown = message_lead + MessageOpenTicks(3) + 1; // the tick the text appears
+    if (++message_step <= shown)
+        return false; // keys pressed until now are flushed
+    return message_step >= shown + MESSAGE_WAIT_TICKS || key_pressed;
 }
 
 void StartLife()
@@ -103,7 +123,7 @@ void EndOfPlay()
         if (SimLoseLife(orig))
             StartLife();
         else
-            state = STATE_GAMEOVER;
+            ShowMessage(Message::GameOver, 1); // 3ab5: erase the icons, flip
         break;
     case PlayResult::Playing:
         break;
@@ -151,19 +171,18 @@ void Tick()
             EndOfPlay();
         break;
     }
-    case Phase::LevelIntro: {
-        // 382c: the box opens (one step per tick), the text appears on the
-        // next tick, then 3b29 flushes the keyboard and waits 240 ticks or
-        // until a key is pressed.
-        const int shown = MessageOpenTicks(3) + 1; // the tick the text appears
-        if (++intro_step <= shown)
-            break; // keys pressed until now are flushed
-        if (intro_step < shown + LEVEL_INTRO_WAIT_TICKS && !key_pressed)
+    case Phase::Message:
+        if (!MessageFinished())
             break;
-        SimLevelStart(orig);
-        StartLife();
+        if (message == Message::LevelIntro) {
+            SimLevelStart(orig);
+            StartLife();
+        } else {
+            // TODO item 19: the high-score check (4882) comes here.
+            state = STATE_TITLE;
+        }
+        message = Message::None;
         break;
-    }
     case Phase::NextLevelWait:
         if (--wait_ticks > 0)
             break;
@@ -188,9 +207,37 @@ void StartGame(int level)
     tick_time = 0.0f;
 }
 
-int LevelIntroStep()
+PlayView CurrentView()
 {
-    return phase == Phase::LevelIntro ? intro_step : -1;
+    PlayView view;
+    switch (phase) {
+    case Phase::Settle:
+        // 36fd erases the balls, bat, shots and icons from its first tick
+        // and draws only the icons again, and those only if the level goes on.
+        if (settle_step > 0) {
+            view.movers = false;
+            view.icons = result != PlayResult::LevelCleared;
+        }
+        break;
+    case Phase::NextLevelWait:
+        view.movers = view.icons = false;
+        break;
+    case Phase::Message:
+        if (message == Message::GameOver) {
+            view.movers = false;
+            view.icons = message_step < message_lead; // 3ab5 erases them
+        }
+        break;
+    default:
+        break;
+    }
+    return view;
+}
+
+Message CurrentMessage(int& step)
+{
+    step = message_step - message_lead;
+    return phase == Phase::Message ? message : Message::None;
 }
 
 void UpdatePlay(float dt)
