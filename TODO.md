@@ -410,7 +410,7 @@ memory is byte-identical (checked at 3, 5, 9 and 15 s). Not done in Step 4:
 the level intro box (item 15) and the other screens of Part C, and the panel
 layout of item 30.
 
-### [ ] 1. Fixed 70 Hz tick with whole-pixel movement
+### [x] 1. Fixed 70 Hz tick with whole-pixel movement
 
 **Original:** every moving object uses whole-pixel steps per tick (see the RAM
 map). The ball also moves one extra pixel vertically on some ticks to give
@@ -429,6 +429,12 @@ counter.
 **Accept:** the game speed doesn't depend on frame rate (check with
 `SetTargetFPS(30)` and `SetTargetFPS(144)`). All movement constants in later
 items are per-tick integers.
+
+**Done:** the game runs `sim` (Step 4) once per 1/70 s from an accumulator
+in `game.cpp`; every position and speed is an integer in the original's
+memory. Accept checked: after the same play time at 30, 60, 70 and 144 fps
+the memory is byte-identical (at 3, 5, 9 and 15 s), and the demo replay
+matches the original's trace tick for tick (11264 ticks).
 
 ### [ ] 2. Bat movement and bat–ball collision (six fixed zones)
 
@@ -469,6 +475,12 @@ by −6 px.
 **Accept:** six distinct bounce angles per bat width; the ball never goes
 straight up; the ball can't be saved once it is past y = 323.
 
+**Status (Step 5):** ported in `sim.cpp` and used by the game, but not ticked:
+it needs play traces (V3). The demo trace confirms the bat zones and the
+bounce with width 6 (the demo bat). Not reached: bat movement by keys
+(`2dbc`), widths 4 and 8, sticky, the through flag, split, misses and the
+below-bat flag. Item 2's direction bug is behind `faithful_bugs`.
+
 ### [ ] 3. Ball speed model (base dy + thirds counter)
 
 **Original:**
@@ -490,7 +502,13 @@ straight up; the ball can't be saved once it is past y = 323.
 
 **Accept:** matches the numbers above, all per tick.
 
-### [ ] 4. Ball collision box and multi-brick hits
+**Status (Step 5):** ported in `sim.cpp` and used by the game, but not ticked:
+it needs play traces (V3). The demo trace confirms nothing of the speed model
+beyond `dy` = ±2: the speed-up timer never reaches 1536 ticks in a 1024-tick
+demo level, so the counter stays 0. The speed-up and slow-down icons aren't
+applied in the demo.
+
+### [x] 4. Ball collision box and multi-brick hits
 
 **Original:**
 - The ball is an **8×6** box. Its (x, y) is the **top-left corner**. The
@@ -533,6 +551,13 @@ The remake draws `DrawCircle(x, y, 4)` (`draw.cpp` ~271).
 **Accept:** a ball hitting the gap between two bricks breaks both, like the
 original.
 
+**Done:** ported literally (`fcn_2693`, `2858`, `290d`, `2a25`, `2a73`,
+`2b0b`, `2b49`, `2b8c` in `sim.cpp`); the ball is drawn as the 8x6 sprite.
+Accept checked in `demo.trace.gz`: 12 ticks break two or more bricks at once
+(e.g. tick 62 of demo level 02), and the replay matches all of them. Not
+reached by the demo, so only checked against the asm: the 3-cell case and
+the corner tie-break (`27c2`).
+
 ### [ ] 5. Through-bricks ball also passes unbreakable bricks
 
 **Original:** while bit 1 is set, `2b0b`/`2b49` don't bounce at all, including
@@ -542,7 +567,11 @@ The flag lasts from one bat hit to the next.
 **Remake:** `game.cpp` ~432–453 still bounces off `0x1C`, and the comment says
 so. Remove that special case and its comment.
 
-### [ ] 6. Icons are released on the first hit of a brick
+**Status (Step 5):** ported in `sim.cpp` and used by the game, but not ticked:
+it needs play traces (V3). The demo trace confirms nothing; no through-bricks
+icon is caught in the demo.
+
+### [x] 6. Icons are released on the first hit of a brick
 
 **Original:** `2a73` calls `22fe` **first**, before checking the brick type.
 So the icon drops on the first hit even for bricks that need several hits.
@@ -553,6 +582,11 @@ col `brickcol*4 + 3` (x = `brickcol*32 + 24`), y = `row*12 + 12`.
 destroyed.
 
 **Accept:** a two-hit brick with an icon drops it on the first hit.
+
+**Done:** `fcn_2a73` calls `fcn_22fe` first. Accept checked in
+`demo.trace.gz`: at record 1320 the 2-hit brick at col 6, row 4 goes
+`0x14` → `0x15` and releases its icon (type 3) on that first hit; the replay
+matches.
 
 ### [ ] 7. Sticky bat details
 
@@ -572,6 +606,11 @@ destroyed.
 `LaunchBall`, which picks a new angle. The laser pickup at `game.cpp` ~586 doesn't
 release stuck balls. `ICON_SHRINK` doesn't move stuck balls.
 
+**Status (Step 5):** ported in `sim.cpp` and used by the game, but not ticked:
+it needs play traces (V3). The demo trace confirms nothing; the demo never
+uses the sticky bat. The scratch driver of Step 4 showed balls sticking and
+being released by the action key.
+
 ### [ ] 8. Laser: one shot from the centre of the bat, 4 slots
 
 **Original:**
@@ -590,6 +629,11 @@ release stuck balls. `ICON_SHRINK` doesn't move stuck balls.
 **Remake:** `game.cpp` ~481–533 fires two shots from the bat edges, has 10
 slots, a 0.2 s cooldown, moves at 300 px/s, and uses the wall sound for
 unbreakable bricks.
+
+**Status (Step 5):** ported in `sim.cpp` and used by the game, but not ticked:
+it needs play traces (V3). The demo trace confirms nothing; the demo has no
+lasers. The scratch driver of Step 4 showed shots fired, moving and breaking
+bricks.
 
 ### [ ] 9. Falling icons: 5 slots, fall rate, animation rate, catch box
 
@@ -625,6 +669,11 @@ unbreakable bricks.
 **Remake:** `MAX_POWERUPS = 16`, 80 px/s fall, 8 fps animation, catch is any
 overlap with the bat (`game.h` ~61, `game.cpp` ~535–630).
 
+**Status (Step 5):** ported in `sim.cpp` and used by the game, but not ticked:
+it needs play traces (V3). The demo trace confirms spawn into the 5 slots, the
+fall rate, the animation rate and the catch box (the demo bat catches icons;
+the demo doesn't apply them). Not reached: the 12 handlers and their sounds.
+
 ### [ ] 10. Up to 16 balls
 
 **Original:** the ball table has 16 slots (`0xc16d`). A split makes no ball
@@ -635,6 +684,10 @@ bugs" is on.
 
 **Remake:** `MAX_BALLS = 5` (`game.h` ~32). Raise it to 16.
 
+**Status (Step 5):** ported in `sim.cpp` and used by the game, but not ticked:
+it needs play traces (V3). The demo trace confirms nothing; there is no split
+in the demo. See the split bug noted above (behind `faithful_bugs`).
+
 ### [ ] 11. Barrier and ball-loss lines (check only)
 
 **Original (`2cd3`, `2d0a`):** with the barrier on and y > 328: y = 328,
@@ -644,11 +697,15 @@ the ball inactive and balls −1.
 **Remake:** `game.cpp` ~352–374 mostly matches. After item 1, check the
 numbers and add the "below bat" flag (item 2).
 
+**Status (Step 5):** ported in `sim.cpp` and used by the game, but not ticked:
+it needs play traces (V3). The demo trace confirms nothing; the demo never
+misses, so the below-bat flag, ball loss and the barrier aren't reached.
+
 ---
 
 ## Part B — feedback and effects
 
-### [ ] 12. Bricks flash white when hit
+### [x] 12. Bricks flash white when hit
 
 **Original:** every hit, including a hit that only damages a multi-hit brick,
 queues the brick in `0xcf17` with a 5-tick timer (`5bbd`). The flash is drawn
@@ -658,6 +715,12 @@ then show their next state.
 
 **Remake:** no flash. Add a small list of (col, row, ticks) and draw a white
 32×12 rectangle, or the original's pattern, while ticks > 0.
+
+**Done:** the queue is `fcn_5bbd`/`fcn_5b26` in `sim.cpp`, including the
+per-display-page bits in the timer (bit 6 page 0, bit 7 page 1); `draw.cpp`
+draws brick sprite `0x20` while the shown page has its bit set. The demo runs
+every line of `5b26`/`5bbd`, and the flash table matches the trace in all
+11264 ticks. The look on screen isn't compared with the original yet (V5).
 
 ### [ ] 13. Score counts up gradually; extra-ball sound
 
@@ -679,6 +742,12 @@ comments in `sound.cpp`; the player is at `521a`/`52df`).
 
 **Accept:** the score panel visibly counts up after a hit; the extra-ball
 sound plays at 4000, 8000, …
+
+**Status (Step 5):** ported in `sim.cpp` and used by the game, but not ticked:
+it needs play traces (V3). The demo trace confirms nothing; the demo doesn't
+call `5ee1` (points stay pending), and no extra ball happens. `snd_extra_life`
+isn't needed: `0xD3C` is the extra-life pickup sound, played through
+`play_pattern`.
 
 ### [ ] 14. Fix the sound-effect mapping
 
@@ -1036,6 +1105,10 @@ counting before the next screen appears. The same happens after losing a ball.
 (`game.cpp` ~362–372, `game.cpp` ~632–640). Add a short settle state that runs only the
 flash and score steps (needs items 12 and 13).
 
+**Status (Step 5):** ported in `sim.cpp` and used by the game, but not ticked:
+it needs play traces (V3). The demo trace confirms nothing; the settle loop
+isn't traced. Ported as `SimSettleStep`, used by `game.cpp`.
+
 ### [ ] 29. What survives a lost life
 
 **Original:** `3610` (new life) and `3904` reset only:
@@ -1061,6 +1134,11 @@ barrier flag across lives.
 
 **Accept:** with an icon falling when the last ball is lost, the same icon is
 still falling after the new ball appears, and it can be caught.
+
+**Status (Step 5):** ported in `sim.cpp` and used by the game, but not ticked:
+it needs play traces (V3). The demo trace confirms nothing; no life is lost in
+the demo. `SimLifeStart` resets only what `3610` resets, so falling icons and
+the barrier survive.
 
 ### [ ] 30. Screen layout pixel fixes
 

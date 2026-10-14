@@ -6,35 +6,26 @@ Read this first, then `CLAUDE.md`, then these sections of `TODO.md`:
 
 ## Where things stand
 
+The plan below (Steps 0–5) is **done**. Start at "After Step 5" at the end.
+
 - `TODO.md` lists every known difference from the original (items 1–33 plus
-  verification items V1–V7), with addresses in the disassembly.
-- The remake is split into `game.cpp/.h` (simulation), `draw.cpp/.h`
-  (drawing) and `main.cpp` (start-up, states). Its behaviour hasn't changed
-  yet.
-- **Reference tooling works (V1, V2 done):**
-  - `tools/run_original.sh` runs the original in DOSBox-X.
-  - `tools/make_trace_com.py` builds `PARTRACE.COM`, which records the state
-    every tick.
-  - `tools/trace_dump.py` and `tools/trace_format.py` read the records.
-- **Demo reference:** `tests/reference/demo.trace.gz` (11264 ticks). It is
-  **git-ignored**. If it's missing, run `tools/make_demo_trace.sh` (about
-  5 minutes, opens a DOSBox-X window), then check that
+  verification items V1–V7), with addresses in the disassembly. Ticked so
+  far: 1, 4, 6, 12, 33, V1, V2.
+- The game runs on `sim.cpp`, a literal port of the original's simulation
+  whose state is the original's memory. `game.cpp` is the play flow at 70
+  ticks per second; `draw.cpp` draws from that memory.
+- **Reference tooling:** `tools/run_original.sh`, `PARTRACE.COM`
+  (`tools/make_trace_com.py`), `tools/trace_dump.py`, `tools/trace_diff.py`,
+  and the remake's `--replay REF --trace OUT` (demo traces only so far).
+- **Test:** `cd build && ctest` replays `tests/reference/demo.trace.gz` and
+  compares it; all 11264 records match. The trace is **git-ignored**; if it's
+  missing the test is skipped. Regenerate it with `tools/make_demo_trace.sh`
+  (about 5 minutes, opens a DOSBox-X window), then check that
   `python3 -I tools/trace_dump.py tests/reference/demo.trace.gz --summary`
   lists levels 02, 05, 06, 09, 10, 07, 04, 03, 01, 08, 02 at 1024 records
   each.
-- **Not started:** V4 (the remake's `--trace`/`--replay` and `trace_diff.py`)
-  and all of Parts A–E.
-- `TODO.md` has uncommitted changes (item 33). Ask the user whether to commit
-  before starting.
-
-## Before writing code: ask the user one thing
-
-The open decisions in `TODO.md` must be **asked, not assumed**. One of them
-blocks the plan below: a literal port reproduces the original's bugs (the
-bat-direction quirk in item 2, and others found later), and the demo trace
-can only match if they are reproduced. Ask whether to port faithfully, with an
-option to switch the bugs off later. The bonus-letter bugs (item 32) aren't
-reached in the demo, but ask about them at the same time.
+- Decided by the user: bugs are reproduced behind `faithful_bugs` (on by
+  default), and item 32 follows it (see Decisions in `TODO.md`).
 
 ## The plan, in order
 
@@ -180,13 +171,25 @@ The original plan for this step:
 - The 120-tick wait at the start of a life (`3610`/`3b4c`) and the settle
   phase (`36fd`, item 28) belong to the play flow.
 
-### Step 5 — tick the TODO
+### Step 5 — tick the TODO — DONE
 
-Tick items 1–11, 12, 13, 28 and 29 with "Done:" notes, each one only after
-the trace confirms it. Items the demo can't exercise (lasers, sticky bat,
-most icons, losing a life) stay unticked until play traces exist (V3; a person
-has to record them with `tools/run_original.sh --trace`). Say so in their
-notes.
+Ticked 1, 4, 6 and 12 (confirmed by `demo.trace.gz`, or for 1 by the
+frame-rate test); each has a "Done:" note. Items 2, 3, 5, 7, 8, 9, 10, 11, 13,
+28 and 29 stay unticked with a "Status (Step 5)" note saying what the demo
+confirms and what needs play traces.
+
+### After Step 5 — what to do next
+
+1. **Play traces (V3) need a person:** someone plays the original with
+   `tools/run_original.sh --trace` (see V3 in `TODO.md`), covering lasers,
+   sticky, split, the barrier, letters, losing balls and the icons.
+2. **Play-trace replay** (rest of V4): start from the first play record and
+   feed each tick's keys (see the V4 progress note for the action-key catch),
+   then tick the remaining Part A items as their traces match.
+3. Meanwhile, Parts B–E of `TODO.md` in order (item 14's renames, the screens
+   of Part C, item 30's layout). Before items that touch them, **ask** the
+   still-open decisions in `TODO.md`: the remake's extras (arrow keys, `-l`,
+   resizable window, PAUSED banner) and the 4:3 display default.
 
 ## Facts learned this session that aren't obvious
 
