@@ -10,17 +10,20 @@ The plan below (Steps 0–5) is **done**. Start at "After Step 5" at the end.
 
 - `TODO.md` lists every known difference from the original (items 1–33 plus
   verification items V1–V7), with addresses in the disassembly. Ticked so
-  far: 1, 4, 6, 12, 14–27, 30–33, V1, V2, V7.
+  far: 1, 4, 6, 12, 14–27, 30–33, V1, V2, V5, V7.
 - The game runs on `sim.cpp`, a literal port of the original's simulation
   whose state is the original's memory. `game.cpp` is the play flow at 70
   ticks per second; `draw.cpp` draws from that memory.
 - **Reference tooling:** `tools/run_original.sh`, `PARTRACE.COM`
   (`tools/make_trace_com.py`), `tools/trace_dump.py`, `tools/trace_diff.py`,
   and the remake's `--replay REF --trace OUT` (demo traces only so far).
-- **Test:** `cd build && ctest` replays `tests/reference/demo.trace.gz` and
-  compares it; all 11264 records match. The trace is **git-ignored**; if it's
-  missing the test is skipped. Regenerate it with `tools/make_demo_trace.sh`
-  (about 5 minutes, opens a DOSBox-X window), then check that
+- **Tests:** `cd build && ctest`: `demo_replay` replays
+  `tests/reference/demo.trace.gz` and compares it (all 11264 records match);
+  `screens` draws 24 scenes and compares them with the original's screens
+  in `tests/reference/screens` (all pixel-identical). The trace is
+  **git-ignored**; if it's missing the test is skipped. Regenerate it with
+  `tools/make_demo_trace.sh` (about 5 minutes, opens a DOSBox-X window),
+  then check that
   `python3 -I tools/trace_dump.py tests/reference/demo.trace.gz --summary`
   lists levels 02, 05, 06, 09, 10, 07, 04, 03, 01, 08, 02 at 1024 records
   each.
@@ -191,9 +194,9 @@ confirms and what needs play traces.
    original with `tools/grab_original.sh` (see V5); items 15–17, 19–24, 30
    and 32 were matched pixel for pixel, 17, 19, 24 and 32 with patched
    scratch copies of the original's files (see their notes).
-4. What is left besides play traces: V4's play-trace replay (with V3), V5
-   (a `--screenshot` option and stored reference screens) and V6 (sound).
-   V7 is done (4:3 by default). No decision is open at the moment.
+4. What is left besides play traces: V4's play-trace replay (with V3) and V6
+   (sound). V5 (`--screenshot`, 24 reference screens, CTest `screens`) and V7
+   (4:3 by default) are done. No decision is open at the moment.
 
 ## Facts learned this session that aren't obvious
 

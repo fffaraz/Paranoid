@@ -341,7 +341,7 @@ play traces (needs V3 recordings: start from the first play record and feed
 the key states per tick; note that the action handler clears `0xd42c` within
 the tick, so the record shows 0 after a press).
 
-### [ ] V5. Screenshot comparison
+### [x] V5. Screenshot comparison
 
 **Progress (item 15):** `tools/grab_original.sh OUTDIR SECONDS [KEYS]` runs
 the original and saves its screen as 640×350 PNGs every ~0.2 s without
@@ -374,6 +374,22 @@ AUTOTYPE: `-w` is the first wait, `-p` the pause between keys.
 **Accept:** every static screen (title boxes, help pages, side panel,
 high-score layout) matches to 0 different pixels. Item 30 and the help-page
 items are only done when their screens match.
+
+**Done.** `--screenshot SCENE OUT.png` (`screens.cpp`, sharing
+`RenderScreen` with the main loop) sets up a scene in a hidden window and
+saves the 640×350 picture: `title:T`, `demo:T`, `hiscores:T`, `info:P:T`,
+`game:T` (a game without keys), `bonus-game:T`, `cleared-game:T`,
+`scored-game:T`, `name-entry:TEXT`, `exit`. `tools/screen_diff.py` (Pillow)
+counts the differing pixels and writes a highlight image.
+`tests/reference/screens/` has 24 screens of the original (see the README
+there for how each was made, three with patched scratch copies of the
+original's files); the CTest test `screens` draws each scene and requires
+0 differing pixels, and **all 24 pass**. Not in the set: in-game screens
+with each bat width, the laser, the barrier and the icons (they need a
+person playing, like V3); the ending (only reachable in the original by
+patching, item 17); the exit screen (not pixel-identical by design,
+item 31). The screenshot mode doesn't read or write `HiScores.PAR`: the
+remake now loads it in `main()`, after `InitGame`.
 
 ### [ ] V6. Sound comparison
 

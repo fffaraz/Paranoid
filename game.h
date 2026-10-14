@@ -37,6 +37,8 @@ extern GameState state;
 extern OrigState orig; // the original's memory, see sim.h
 extern bool quit_requested; // F10 during play
 
+// The simulation at start-up (5134), with the default high-score table; main()
+// then loads HiScores.PAR (3475).
 void InitGame(const std::array<Level, LEVEL_COUNT>& levels);
 // A key the BIOS would see (not Shift, Ctrl, Alt) since the last call.
 bool AnyBiosKey();
@@ -98,6 +100,8 @@ int TitleTicks();
 void StartInfo();
 bool UpdateInfo(float dt);
 int InfoPage();
+// Go straight to F1 page 0..4 (for --screenshot).
+void ShowInfoPage(int page);
 
 // A demo level of the attract loop (3b69). UpdateDemo returns like
 // UpdateHighScoreScreen.

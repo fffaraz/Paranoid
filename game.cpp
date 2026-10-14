@@ -379,7 +379,7 @@ void Tick()
 void InitGame(const std::array<Level, LEVEL_COUNT>& levels)
 {
     SimInit(orig, levels);
-    LoadHiScores(&orig.mem[addr::HISCORE_SCORES]); // 3475 at start-up
+    std::copy_n(DEFAULT_HISCORES, HISCORE_FILE_SIZE, &orig.mem[addr::HISCORE_SCORES]);
     UseKeyTable();
     shown_state = orig;
 }
@@ -571,6 +571,14 @@ int UpdateDemo(float dt)
         }
     }
     return 0;
+}
+
+void ShowInfoPage(int page)
+{
+    info_page = page;
+    if (page >= 3)
+        SimInfoIconsStart(orig, page == 4);
+    tick_time = 0.0f;
 }
 
 void StartInfo()

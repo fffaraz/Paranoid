@@ -2,9 +2,11 @@
 #include "draw.h"
 #include "fonts.h"
 #include "game.h"
+#include "hiscore.h"
 #include "keymap.h"
 #include "levels.h"
 #include "replay.h"
+#include "screens.h"
 #include "sound.h"
 
 #include <raylib.h>
@@ -112,6 +114,8 @@ int main(int argc, char* argv[])
     int starting_level = 1; // remake addition: /L n
     bool fix_bugs = false; // remake addition: the original's bugs are kept unless asked
     bool square_pixels = false; // remake addition: the 4:3 screen unless asked (TODO V7)
+    const char* screenshot_scene = nullptr; // --screenshot SCENE OUT (TODO V5)
+    const char* screenshot_path = nullptr;
     // The remake's own options come out first; the rest is joined into a
     // DOS command tail for the original's switches.
     std::string tail;
@@ -126,6 +130,9 @@ int main(int argc, char* argv[])
             fix_bugs = true;
         } else if (strcmp(arg, "--square-pixels") == 0) {
             square_pixels = true;
+        } else if (strcmp(arg, "--screenshot") == 0 && i + 2 < argc) {
+            screenshot_scene = argv[++i];
+            screenshot_path = argv[++i];
         } else if (strcmp(arg, "--replay") == 0 && i + 1 < argc) {
             replay_path = argv[++i];
         } else if (strcmp(arg, "--trace") == 0 && i + 1 < argc) {
@@ -147,16 +154,26 @@ int main(int argc, char* argv[])
         return Replay(replay_path, trace_path);
     }
 
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    // 1.5 times 640x480 for the 4:3 screen, twice 640x350 for square pixels.
-    if (square_pixels)
-        InitWindow(1280, 700, "Paranoid");
-    else
-        InitWindow(960, 720, "Paranoid");
+    if (screenshot_scene) {
+        // A hidden window for the drawing; 77 tells CTest to skip without a display.
+        SetTraceLogLevel(LOG_WARNING);
+        SetConfigFlags(FLAG_WINDOW_HIDDEN);
+        InitWindow(640, 350, "Paranoid");
+        if (!IsWindowReady())
+            return 77;
+    } else {
+        SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+        // 1.5 times 640x480 for the 4:3 screen, twice 640x350 for square pixels.
+        if (square_pixels)
+            InitWindow(1280, 700, "Paranoid");
+        else
+            InitWindow(960, 720, "Paranoid");
+    }
     // Escape belongs to the game (it ends a game), not to raylib.
     SetExitKey(KEY_NULL);
     SetWindowMinSize(640, 350);
-    load_sounds(sounds);
+    if (!screenshot_scene)
+        load_sounds(sounds);
 
     char root_path[128];
     if (!getRootPath(root_path, sizeof(root_path))) {
@@ -188,6 +205,12 @@ int main(int argc, char* argv[])
     }
 
     LoadGameTextures(bitmaps, fonts);
+    if (screenshot_scene) {
+        InitGame(levels);
+        const int result = TakeScreenshot(screenshot_scene, screenshot_path);
+        CloseWindow();
+        return result;
+    }
 
     RenderTexture2D game_screen = LoadRenderTexture(640, 350);
     RenderTexture2D page_screen = LoadRenderTexture(640, 350); // for the scroll transitions
@@ -195,6 +218,7 @@ int main(int argc, char* argv[])
 
     SetTargetFPS(60);
     InitGame(levels);
+    LoadHiScores(&orig.mem[addr::HISCORE_SCORES]); // 3475
     orig.b(addr::QUIET) = switches.quiet ? 1 : 0;
     orig.faithful_bugs = !fix_bugs; // see TODO.md, Decisions
     if (switches.custom_keys) {
@@ -277,79 +301,7 @@ int main(int argc, char* argv[])
             break;
         }
 
-        // During a scroll transition the play screen is one of the two pages
-        // the display window moves across (see Transition in game.h).
-        const Transition transition = state == STATE_PLAY ? CurrentTransition() : Transition { Transition::None, 0 };
-        const int display_line = state == STATE_PLAY ? DisplayLine() : 0;
-        if (transition.kind != Transition::None) {
-            BeginTextureMode(page_screen);
-            ClearBackground(EGA_PALETTE[0]);
-            DrawPlay(CurrentView());
-            EndTextureMode();
-        } else if (display_line != 0) {
-            // Only the "Level xx" message is ever drawn this way.
-            int step = 0;
-            CurrentMessage(step);
-            BeginTextureMode(page_screen);
-            ClearBackground(EGA_PALETTE[0]);
-            DrawLevelIntro(orig.b(addr::LEVEL), step);
-            EndTextureMode();
-        }
-
-        BeginTextureMode(game_screen);
-        ClearBackground(EGA_PALETTE[0]);
-
-        switch (state) {
-        case STATE_TITLE:
-            DrawTitleScreen(TitleTicks());
-            break;
-        case STATE_INFO:
-            DrawInfoPage(InfoPage());
-            break;
-        case STATE_DEMO:
-            DrawDemo();
-            break;
-        case STATE_EXIT:
-            DrawExitScreen();
-            break;
-        case STATE_HISCORES:
-            DrawHighScoreScreen(HighScoreBallsShown());
-            break;
-        case STATE_PLAY: {
-            int step = 0;
-            Message message = CurrentMessage(step);
-            if (transition.kind != Transition::None) {
-                // In: page 0 (the play screen) from the window's top; Out:
-                // page 1, 352 lines below page 0.
-                const float y = transition.kind == Transition::In ? -transition.line : 352.0f - transition.line;
-                DrawTextureRec(page_screen.texture, { 0, 0, 640, -350 }, { 0, y }, WHITE);
-            } else if (display_line != 0) {
-                DrawTextureRec(page_screen.texture, { 0, 0, 640, -350 }, { 0, (float)-display_line }, WHITE);
-            } else if (message == Message::LevelIntro) {
-                DrawLevelIntro(orig.b(addr::LEVEL), step);
-            } else if (message == Message::GameOver) {
-                DrawPlay(CurrentView());
-                DrawGameOver(step);
-            } else if (message == Message::Ending) {
-                DrawPlay(CurrentView());
-                DrawEnding(step);
-            } else if (message == Message::NewHighScore) {
-                DrawPlay(CurrentView());
-                if (MessageBelow() == Message::Ending)
-                    DrawEnding(1000);
-                else
-                    DrawGameOver(1000);
-                DrawNewHighScore(step);
-            } else if (NameEntryRank() > 0) {
-                DrawHighScoreTable();
-                DrawNameInput(NameEntryRank());
-            } else {
-                DrawPlay(ShownState(), orig, ShownView());
-            }
-            break;
-        }
-        }
-        EndTextureMode();
+        RenderScreen(game_screen, page_screen);
 
         BeginDrawing();
         ClearBackground(BLACK);

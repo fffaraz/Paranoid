@@ -16,7 +16,7 @@ FetchContent_MakeAvailable(raylib)
 
 add_compile_options(-Werror)
 
-add_executable(paranoid main.cpp game.cpp draw.cpp sim.cpp replay.cpp hiscore.cpp keymap.cpp bitmaps.cpp fonts.cpp levels.cpp sound.cpp)
+add_executable(paranoid main.cpp game.cpp draw.cpp sim.cpp replay.cpp hiscore.cpp keymap.cpp screens.cpp bitmaps.cpp fonts.cpp levels.cpp sound.cpp)
 target_link_libraries(paranoid PRIVATE raylib m)
 
 if(EMSCRIPTEN)
@@ -54,4 +54,9 @@ if(NOT EMSCRIPTEN)
     add_test(NAME demo_replay
         COMMAND ${CMAKE_SOURCE_DIR}/tools/check_demo_replay.sh $<TARGET_FILE:paranoid>)
     set_tests_properties(demo_replay PROPERTIES SKIP_RETURN_CODE 77)
+    # Draws the scenes in tests/reference/screens and compares them with the
+    # original's screens (TODO V5). Skipped without a display.
+    add_test(NAME screens
+        COMMAND ${CMAKE_SOURCE_DIR}/tools/check_screens.sh $<TARGET_FILE:paranoid>)
+    set_tests_properties(screens PROPERTIES SKIP_RETURN_CODE 77)
 endif()

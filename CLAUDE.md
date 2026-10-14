@@ -29,6 +29,8 @@ The game loads `BITMAPS.PAR`, `FONTS.PAR` and `LEVELS.PAR` from `.`,
 - `replay.h` / `replay.cpp`: headless `--replay` of a demo trace through `sim`.
 - `hiscore.h` / `hiscore.cpp`: `HiScores.PAR` load/save and the default table.
 - `keymap.h` / `keymap.cpp`: PC scan codes to raylib keys, and the `/K` switch.
+- `screens.h` / `screens.cpp`: `RenderScreen` (one frame, shared with the
+  main loop) and `--screenshot SCENE OUT.png` (TODO V5).
 - `draw.h` / `draw.cpp`: EGA palette, textures, text, `DrawTitleScreen`,
   `DrawPlay` (draws from `OrigState`).
 - `main.cpp`: start-up, the state machine and the simple screens.
@@ -107,6 +109,9 @@ python3 -I tools/trace_dump.py tests/capture/TRACE.BIN --from 1000 --count 10
   opens a DOSBox-X window).
 - `tools/grab_original.sh OUTDIR SECONDS [KEYS]` saves the original's screen
   as 640×350 PNGs every ~0.2 s, to compare screens pixel for pixel (TODO V5).
+- `./build/paranoid --screenshot SCENE OUT.png` draws a scene (see
+  `screens.cpp`); `tools/screen_diff.py REF OURS` compares two screens. The
+  CTest test `screens` checks all of `tests/reference/screens/`.
 - Check the simulation against the demo: `cd build && ctest` (test
   `demo_replay`, skipped when the reference is missing). By hand:
   `./build/paranoid --replay tests/reference/demo.trace.gz --trace OUT` runs
