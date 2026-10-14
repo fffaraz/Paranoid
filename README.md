@@ -17,7 +17,8 @@ cmake --build build -j
 ./build/paranoid
 ```
 
-Decompile with:
+Decompiled with:
+
 ```
 ndisasm -b 16 -o 0x100 PARANOID.COM > PARANOID.asm
 
