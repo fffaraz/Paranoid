@@ -13,7 +13,7 @@
  *     - Region2 chunk continues from where region1 chunk left off
  *       (key_pos and counter are NOT reset between the two)
  *
- * Level data (30 levels, 19 columns x 14 rows = 266 bytes each):
+ * Level data (30 levels, 14 columns x 19 rows = 266 bytes each):
  *   bricks[][]: brick type per cell
  *     0x00 = empty
  *     0x1C = indestructible (not counted toward breakable total)
@@ -23,7 +23,8 @@
  *     other values = hidden powerup type revealed when brick is destroyed
  *
  *   Level offset = level_index * 266 into each decrypted region.
- *   Grid is stored row-major: bricks[row][col], stride = 19 bytes per row.
+ *   Grid is stored column-major: bricks[col][row], stride = 19 bytes per
+ *   column. Column c is at x = 16 + 32*c (draw 5a1f, collision (x-16)/32).
  */
 
 #include "levels.h"

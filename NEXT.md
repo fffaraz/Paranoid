@@ -38,7 +38,7 @@ reached in the demo, but ask about them at the same time.
 
 ## The plan, in order
 
-### Step 0 — item 33: levels are mirrored (small, separate)
+### Step 0 — item 33: levels are mirrored (small, separate) — DONE
 
 `LoadLevel` in `game.cpp` uses `bricks[13 - c][r]`. The original uses the data
 unmirrored (`bricks[c][r]`, column `c` at x = 16 + 32c); this is proven from

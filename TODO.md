@@ -1112,7 +1112,7 @@ order, once. Options to offer the user:
 
 Whichever is chosen, add a comment citing `0x2adc` and `5e65`.
 
-### [ ] 33. Levels are drawn mirrored left to right (quick fix)
+### [x] 33. Levels are drawn mirrored left to right (quick fix)
 
 **Found from `demo.trace.gz`.** The original's brick grid at `0x8100` is the
 decrypted level data unchanged (`3437` copies it). Column `c` is drawn and
@@ -1130,6 +1130,13 @@ levels come out on the wrong side.
 names in `levels.h` are swapped, so fix those names and the comment in
 `levels.cpp` too.) Check by comparing the first record of each demo level in
 `demo.trace.gz` with the remake's grid.
+
+**Done:** `LoadLevel` now uses `bricks[c][r]` / `attrs[c][r]`. In
+`levels.h`, `LEVEL_COLS = 14`, `LEVEL_ROWS = 19` and the arrays are
+`[LEVEL_COLS][LEVEL_ROWS]`; the comment in `levels.cpp` says column-major.
+Checked: the bricks block of the first record of all 11 demo-level runs in
+`demo.trace.gz` matches the loaded level byte for byte (the old mirrored
+load differed in levels 3, 4, 5, 6, 7 and 10).
 
 ---
 

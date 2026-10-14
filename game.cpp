@@ -232,8 +232,8 @@ void LoadLevel(int index, const std::array<Level, LEVEL_COUNT>& levels)
     bricks_remaining = 0;
     for (int r = 0; r < PLAY_ROWS; r++) {
         for (int c = 0; c < PLAY_COLS; c++) {
-            grid[r][c] = lvl->bricks[13 - c][r];
-            grid_attrs[r][c] = lvl->attrs[13 - c][r];
+            grid[r][c] = lvl->bricks[c][r];
+            grid_attrs[r][c] = lvl->attrs[c][r];
             if (grid[r][c] != 0 && grid[r][c] != 0x1C)
                 bricks_remaining++;
         }
