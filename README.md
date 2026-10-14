@@ -19,8 +19,9 @@ cmake --build build -j
 
 Decompile with:
 ```
-ndisasm -b 16 -o 0x100 myprog.com > myprog.asm
-r2 -e scr.color=0 -a x86 -b 16 -m 0x100 -qc 'aaa; .izz*; pD $s @ 0x100' myprog.com > myprog.asm
+ndisasm -b 16 -o 0x100 PARANOID.COM > PARANOID.asm
+r2 -e scr.color=0 -a x86 -b 16 -m 0x100 -qc 'aaa; .izz*; pD $s @ 0x100' PARANOID.COM > PARANOID.asm
+r2 -e scr.color=0 -a x86 -b 16 -m 0x100 -qc 'aaa; .izz*; pdg @@F' PARANOID.COM > PARANOID.c
 ```
 
 ## What is Paranoid?
