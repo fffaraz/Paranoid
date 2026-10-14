@@ -47,6 +47,21 @@ struct PlayView {
 };
 PlayView CurrentView();
 
+// A hardware-scroll transition (6555 / 658d): the display shows two pages
+// 352 lines apart in video memory, from `line`. In: the page with the play
+// screen is page 0 and page 1 is blank; Out: page 0 is blank and page 1 has
+// the play screen.
+struct Transition {
+    enum Kind { None,
+        In, // 37db: the new level slides in and bounces
+        Out } kind; // 38b7: a blank page slides in over the last play screen
+    int line;
+};
+Transition CurrentTransition();
+// Outside a transition: how many lines down video memory the display starts
+// (0, or 2 for the "Level xx" message after the scroll between levels).
+int DisplayLine();
+
 // The message on screen, if any. step is its step for DrawMessage: ticks
 // since its box started opening (0 or less: not yet).
 Message CurrentMessage(int& step);

@@ -1209,7 +1209,7 @@ on each tick. Checked against the original (`tools/grab_original.sh`, 10 s
 with no keys, frames matched by hash): every grab of the title, from tick 13
 to tick 673, is pixel-identical to the remake's frame.
 
-### [ ] 24. Screen transitions (hardware scroll)
+### [x] 24. Screen transitions (hardware scroll)
 
 **Original:** the game draws to a hidden page and reveals it by changing the
 CRTC start address.
@@ -1221,6 +1221,32 @@ CRTC start address.
 
 **Do:** emulate them as vertical offsets of the 640×350 render texture in
 `main()`. Ask the user whether this one is wanted before spending time on it.
+
+**Done** (wanted, see Decisions). The two pages are 352 lines apart in video
+memory and the display shows 350 lines from the CRTC start, so `game.cpp`
+gives each frame as a start line (`CurrentTransition`) and `main.cpp` draws
+the play screen as page 0 or page 1 at that offset over black, from a second
+render texture. Exact sequence, from the asm:
+- `6555` shows lines 352, 347, ..., **2** (71 frames, one per retrace); it
+  stops at 2, not 0. A key sets 0 and returns at once (37db then skips the
+  bounce).
+- `658d`: a speed of +5 down to -5 lines, 7 frames each, then +3 down to
+  -3 (77 + 49 frames); the picture rises 105 lines and 42 lines. A key sets 0.
+- Level start (`37db`): after "Level xx", one blank tick (`65e9`), then the
+  new playfield (frame, panel, bricks; no bat or ball) slides in over the
+  blank page and bounces; then the life starts (`3610`).
+- Between levels (`38b7`): a flip if needed, 30 ticks of the last screen,
+  then a blank page slides in from the top over it; then "Level xx".
+- The page flip (`65e9`) writes only the high byte of the start address,
+  so after `38b7`'s scroll (ending at 160 bytes = `0x00a0`) the "Level xx"
+  message shows **2 lines up**, until the next scroll (`DisplayLine`).
+Checked against the original with a scratch copy of `PARANOID.COM` whose
+levels start with 0 bricks (`33e0`: store `cx` instead of `dx`) and
+`tools/grab_original.sh`, matched by hash on the left 496 px (the score
+panel is item 30): every grab of the game is pixel-identical to the
+remake's frame: "Level 01", the scroll in and the bounce, the life, the 30
+ticks, the scroll out, "Level 02" 2 lines up, and the next scroll in and
+bounce.
 
 ---
 

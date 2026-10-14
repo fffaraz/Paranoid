@@ -114,6 +114,7 @@ int main(int argc, char* argv[])
     LoadGameTextures(bitmaps, fonts);
 
     RenderTexture2D game_screen = LoadRenderTexture(640, 350);
+    RenderTexture2D page_screen = LoadRenderTexture(640, 350); // for the scroll transitions
     SetTextureFilter(game_screen.texture, TEXTURE_FILTER_POINT);
 
     SetTargetFPS(60);
@@ -175,6 +176,25 @@ int main(int argc, char* argv[])
             break;
         }
 
+        // During a scroll transition the play screen is one of the two pages
+        // the display window moves across (see Transition in game.h).
+        const Transition transition = state == STATE_PLAY ? CurrentTransition() : Transition { Transition::None, 0 };
+        const int display_line = state == STATE_PLAY ? DisplayLine() : 0;
+        if (transition.kind != Transition::None) {
+            BeginTextureMode(page_screen);
+            ClearBackground(EGA_PALETTE[0]);
+            DrawPlay(CurrentView());
+            EndTextureMode();
+        } else if (display_line != 0) {
+            // Only the "Level xx" message is ever drawn this way.
+            int step = 0;
+            CurrentMessage(step);
+            BeginTextureMode(page_screen);
+            ClearBackground(EGA_PALETTE[0]);
+            DrawLevelIntro(orig.b(addr::LEVEL), step);
+            EndTextureMode();
+        }
+
         BeginTextureMode(game_screen);
         ClearBackground(EGA_PALETTE[0]);
 
@@ -194,7 +214,14 @@ int main(int argc, char* argv[])
         case STATE_PLAY: {
             int step = 0;
             Message message = CurrentMessage(step);
-            if (message == Message::LevelIntro) {
+            if (transition.kind != Transition::None) {
+                // In: page 0 (the play screen) from the window's top; Out:
+                // page 1, 352 lines below page 0.
+                const float y = transition.kind == Transition::In ? -transition.line : 352.0f - transition.line;
+                DrawTextureRec(page_screen.texture, { 0, 0, 640, -350 }, { 0, y }, WHITE);
+            } else if (display_line != 0) {
+                DrawTextureRec(page_screen.texture, { 0, 0, 640, -350 }, { 0, (float)-display_line }, WHITE);
+            } else if (message == Message::LevelIntro) {
                 DrawLevelIntro(orig.b(addr::LEVEL), step);
             } else if (message == Message::GameOver) {
                 DrawPlay(CurrentView());
@@ -232,6 +259,7 @@ int main(int argc, char* argv[])
         DrawTexturePro(game_screen.texture, { 0, 0, 640, -350 }, destination, { 0, 0 }, 0, WHITE);
         EndDrawing();
     }
+    UnloadRenderTexture(page_screen);
     UnloadRenderTexture(game_screen);
     CloseAudioDevice();
     CloseWindow();

@@ -37,10 +37,36 @@ MessageSpec Spec(Message m)
     }
 }
 
-enum class Phase { Message, LifeWait, Play, Settle, NextLevelWait, NameEntry };
+enum class Phase { Message, LifeWait, Play, Settle, NextLevelWait, SlideOut, SlideIn, Bounce, NameEntry };
+
+// The hardware scroll (6555, 658d) as the display's start line: 0 shows page
+// 0, 352 shows page 1 (the pages are 352 lines apart in video memory).
+constexpr int SLIDE_FRAMES = 71; // 6555: 352, 347, ..., 2
+int SlideLine(int frame)
+{
+    return 352 - 5 * frame;
+}
+// 658d: the start moves by a speed that drops from +5 to -5 lines, 7 frames
+// at each speed, then again from +3 to -3.
+int BounceFrames()
+{
+    return 7 * 11 + 7 * 7;
+}
+int BounceLine(int frame)
+{
+    int line = 0;
+    for (int f = 0; f <= frame; f++)
+        line += f < 77 ? 5 - f / 7 : 3 - (f - 77) / 7;
+    return line;
+}
 
 Phase phase = Phase::LifeWait;
 int wait_ticks = 0;
+int transition_frame = 0;
+// The page flip (653b -> 65e9) sets only the high byte of the display start;
+// the scroll (6609) sets both. 6555 ends at 160 bytes, so after the scroll
+// between levels the screen stays 2 lines up until the next scroll.
+int display_line = 0;
 Message message = Message::None;
 Message message_below = Message::None; // a finished message still on screen
 int message_step = 0; // ticks since the message phase started
@@ -209,8 +235,9 @@ void EndOfPlay()
             ShowMessage(Message::Ending, 0); // 3caf, straight after the settle
             break;
         }
+        // 38b7: show the last page drawn (a flip if needed), then wait.
         phase = Phase::NextLevelWait;
-        wait_ticks = NEXT_LEVEL_WAIT_TICKS;
+        wait_ticks = NEXT_LEVEL_WAIT_TICKS + (orig.b(addr::PAGE) != 0 ? 1 : 0);
         break;
     case PlayResult::BallsLost:
         if (SimLoseLife(orig))
@@ -268,8 +295,12 @@ void Tick()
         if (!MessageFinished())
             break;
         if (message == Message::LevelIntro) {
+            // 37db: the new playfield slides in (6555) and bounces (658d);
+            // first 65e9 shows the blank page for a tick.
             SimLevelStart(orig);
-            StartLife();
+            phase = Phase::SlideIn;
+            transition_frame = -2;
+            display_line = 0; // the screen is blank until 6555 sets the start
             message = Message::None;
         } else if (message == Message::NewHighScore) {
             // 4a3a draws the table, then 48c0 takes the name.
@@ -285,7 +316,40 @@ void Tick()
     case Phase::NextLevelWait:
         if (--wait_ticks > 0)
             break;
-        StartLevel();
+        // 38b7 then slides a blank page in from the top (6555).
+        phase = Phase::SlideOut;
+        transition_frame = -1;
+        break;
+    // Each tick shows one frame of a scroll; the next step starts on the tick
+    // after its last frame.
+    case Phase::SlideOut:
+        // A key ends the scroll at once (6555 reads it, so the "Level xx"
+        // message doesn't see it).
+        if (transition_frame == SLIDE_FRAMES - 1 || key_pressed) {
+            display_line = key_pressed ? 0 : SlideLine(SLIDE_FRAMES - 1); // a key sets 0 (6574)
+            StartLevel();
+            MessageFinished(); // the box's first step shows on this tick
+        } else {
+            transition_frame++;
+        }
+        break;
+    case Phase::SlideIn:
+        // 37db flushes the keyboard first (5036); a key then skips the rest of
+        // the scroll and the bounce.
+        if (key_pressed && transition_frame >= 0) {
+            StartLife();
+        } else if (transition_frame == SLIDE_FRAMES - 1) {
+            phase = Phase::Bounce;
+            transition_frame = 0;
+        } else {
+            transition_frame++;
+        }
+        break;
+    case Phase::Bounce:
+        if (key_pressed || transition_frame == BounceFrames() - 1)
+            StartLife();
+        else
+            transition_frame++;
         break;
     }
     key_pressed = false;
@@ -320,6 +384,13 @@ PlayView CurrentView()
         }
         break;
     case Phase::NextLevelWait:
+    case Phase::SlideOut:
+        view.movers = view.icons = false;
+        break;
+    case Phase::SlideIn:
+    case Phase::Bounce:
+        // 37db draws the frame, the bricks and the panel only (3f08, 406d,
+        // 391f); the bat and the ball come with the life (3610).
         view.movers = view.icons = false;
         break;
     case Phase::Message:
@@ -334,6 +405,25 @@ PlayView CurrentView()
         break;
     }
     return view;
+}
+
+int DisplayLine()
+{
+    return display_line;
+}
+
+Transition CurrentTransition()
+{
+    switch (phase) {
+    case Phase::SlideOut:
+        return { Transition::Out, transition_frame < 0 ? 352 : SlideLine(transition_frame) };
+    case Phase::SlideIn:
+        return { Transition::In, transition_frame < 0 ? 352 : SlideLine(transition_frame) };
+    case Phase::Bounce:
+        return { Transition::In, BounceLine(transition_frame) };
+    default:
+        return { Transition::None, 0 };
+    }
 }
 
 Message CurrentMessage(int& step)
