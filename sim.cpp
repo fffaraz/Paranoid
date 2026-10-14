@@ -1629,6 +1629,11 @@ void SimStoreName(OrigState& s, int rank)
     s.b(uint16_t(NAME_INPUT + 2 + length)) = 0;
 }
 
+const uint8_t* SimSoundPattern(uint16_t pattern)
+{
+    return &T_PATTERNS[pattern - PATTERNS];
+}
+
 void SimHitBrick(OrigState& s, int col, int row)
 {
     fcn_2a73_hit_brick(s, uint16_t(col), uint16_t(row));

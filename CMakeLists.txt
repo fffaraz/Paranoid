@@ -59,4 +59,8 @@ if(NOT EMSCRIPTEN)
     add_test(NAME screens
         COMMAND ${CMAKE_SOURCE_DIR}/tools/check_screens.sh $<TARGET_FILE:paranoid>)
     set_tests_properties(screens PROPERTIES SKIP_RETURN_CODE 77)
+    # Writes the sound effects and checks each against its pattern in
+    # PARANOID.COM, tick by tick (TODO V6).
+    add_test(NAME sounds
+        COMMAND ${CMAKE_SOURCE_DIR}/tools/check_sounds.sh $<TARGET_FILE:paranoid>)
 endif()

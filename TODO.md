@@ -391,7 +391,7 @@ patching, item 17); the exit screen (not pixel-identical by design,
 item 31). The screenshot mode doesn't read or write `HiScores.PAR`: the
 remake now loads it in `main()`, after `InitGame`.
 
-### [ ] V6. Sound comparison
+### [x] V6. Sound comparison
 
 - Record the original's PC speaker with the **Capture** menu's WAV recording.
   Trigger each effect: wall, top, bat, brick, laser, laser hit, barrier, each
@@ -401,6 +401,31 @@ remake now loads it in `main()`, after `InitGame`.
 - Compare each effect's length and pitch sequence. Matching the waveform
   sample by sample isn't the goal; matching the timing in ticks at 70 Hz and
   the PIT divisors is.
+
+**Done.** The remake's effects are now built from the original's own pattern
+bytes (`SimSoundPattern`), stepped once per tick as `521a` does, instead of
+the hand-written tables; `--dump-sounds DIR` writes them as WAV files.
+`tools/sound_ticks.py WAV` measures a recording tick by tick (the PIT divisor
+from the zero crossings of each 1/70 s, ignoring the one cycle cut short
+when the next divisor is loaded) and decodes it into the patterns of
+`PARANOID.COM`, including sounds cut short by another (as the priority rule
+allows). `tools/record_original.sh` records the original's speaker without
+the Capture menu or any sound in the room (DOSBox-X's stream is moved to a
+temporary PulseAudio null sink). Results:
+- The remake: all 21 effects decode as their own pattern on every tick
+  (CTest `sounds`, which also catches a swapped or shortened effect).
+- The original (runs listed in `tests/reference/README.md`, some with
+  patched scratch copies of its files): all 21 effects were heard and
+  every tick of every recording fits a pattern: bat, side wall, top wall,
+  brick, laser, laser hit, barrier, ball lost, level cleared, extra ball and
+  pickups 0-11. Pickup 8 (skip level) is cut after one tick by "level
+  cleared", which has a higher priority, as `52df` says.
+- Timing: in a game without keys, the original and the remake start the
+  same 14 sounds in the same order, each within 0.7 tick of each other over
+  1204 ticks (at 70.0 ticks per second, which the recordings show; the
+  70.09 Hz I first assumed made it look like a drift).
+- A finding for item 18: while the game is paused the original doesn't run
+  `521a`, so a sound playing when P is pressed holds its pitch; not done.
 
 ### [x] V7. Aspect ratio of the window
 

@@ -36,8 +36,8 @@ The game loads `BITMAPS.PAR`, `FONTS.PAR` and `LEVELS.PAR` from `.`,
 - `main.cpp`: start-up, the state machine and the simple screens.
 - `bitmaps`, `fonts`, `levels`: loaders for the original `.PAR` files.
   `levels.cpp` also decrypts the levels.
-- `sound`: PC-speaker effects rebuilt from the original's tables, at 70 ticks
-  per second.
+- `sound`: the PC-speaker effects, built from the original's sound patterns
+  (`SimSoundPattern`) one 70 Hz tick at a time, as its player (`521a`) does.
 - `paranoid-v1.8/`: the original game files plus the references:
   - `PARANOID.asm`: radare2 disassembly.
   - `PARANOID.c`: decompiled C of the same code (`fcn.00002bec` = address
@@ -112,6 +112,11 @@ python3 -I tools/trace_dump.py tests/capture/TRACE.BIN --from 1000 --count 10
 - `./build/paranoid --screenshot SCENE OUT.png` draws a scene (see
   `screens.cpp`); `tools/screen_diff.py REF OURS` compares two screens. The
   CTest test `screens` checks all of `tests/reference/screens/`.
+- Sounds (TODO V6): `tools/record_original.sh OUT.wav SECONDS [KEYS]`
+  records the original's PC speaker silently; `./build/paranoid
+  --dump-sounds DIR` writes the remake's effects; `tools/sound_ticks.py
+  WAV` decodes either, tick by tick, into the patterns in `PARANOID.COM`.
+  The CTest test `sounds` checks the remake's effects.
 - Check the simulation against the demo: `cd build && ctest` (test
   `demo_replay`, skipped when the reference is missing). By hand:
   `./build/paranoid --replay tests/reference/demo.trace.gz --trace OUT` runs

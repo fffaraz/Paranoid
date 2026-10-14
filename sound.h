@@ -22,3 +22,6 @@ void load_sounds(Sounds& sounds);
 // Play a sound the simulation started, by its pattern address in the original
 // (sim.h, OrigState::sounds).
 void play_pattern(Sounds& sounds, uint16_t pattern);
+// Write every effect as DIR/PATTERN.wav (e.g. 0c7c.wav), 44100 Hz mono.
+// Returns how many were written.
+int dump_sounds(const char* dir);

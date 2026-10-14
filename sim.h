@@ -169,6 +169,11 @@ void SimStartNameInput(OrigState& s);
 void SimNameInputKey(OrigState& s, uint8_t ascii);
 void SimStoreName(OrigState& s, int rank);
 
+// The sound pattern at `pattern` (0xc7c..0xd77) in the original: a priority
+// byte, the start divisor (word), then (ticks, signed delta word) segments up
+// to 0xff. The sound player (521a) steps it once per tick.
+const uint8_t* SimSoundPattern(uint16_t pattern);
+
 // 2a73: hit the brick at (col, row) as a ball or a laser shot does (icon,
 // points, damage, letters, flash). For tests and tools.
 void SimHitBrick(OrigState& s, int col, int row);

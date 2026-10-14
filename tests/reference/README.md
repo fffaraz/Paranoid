@@ -75,6 +75,25 @@ the repo's `tools/` (never the files in `paranoid-v1.8/`); the TODO items
 named above say exactly what was changed. The remake's scenes set up the
 same states without patching (see `screens.cpp`).
 
+## Sounds
+
+Not stored (the WAV files are large); `tools/record_original.sh OUT.wav
+SECONDS [KEYS]` records the original's PC speaker again in about half a
+minute, silently (a temporary PulseAudio null sink), and
+`tools/sound_ticks.py OUT.wav` decodes it tick by tick into the patterns of
+`PARANOID.COM`. The runs used for TODO V6, all with keys
+`-w 4 -p 3 space space` (a game without keys) unless noted, and with the
+original patched in scratch copies as in the screens table above:
+
+| Run | Patch | Sounds heard |
+|---|---|---|
+| no keys | none | bat, side wall, brick (also cut short by another brick), ball lost |
+| cleared | `33e0`: levels start with 0 bricks | level cleared |
+| extra | `3a06`/`3a0b`/`3a10`: the score starts at 3990 | extra ball |
+| laser | `391b` = 2: the bat starts with the laser; keys: Space every second | laser, laser hit |
+| barrier | `38ab` = 1: the barrier is on from the start | barrier |
+| pickup T | `24b4`, `24cb` = NOPs (any icon low enough is caught); level 1's brick (12, 9) gets icon T | pickup T, T = 0..11 |
+
 ## To record (needs a person)
 
 - `play_*.trace.gz`: real games played in the original with `--trace`. See

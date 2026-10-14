@@ -115,6 +115,7 @@ int main(int argc, char* argv[])
     bool fix_bugs = false; // remake addition: the original's bugs are kept unless asked
     bool square_pixels = false; // remake addition: the 4:3 screen unless asked (TODO V7)
     const char* screenshot_scene = nullptr; // --screenshot SCENE OUT (TODO V5)
+    const char* sound_dir = nullptr; // --dump-sounds DIR (TODO V6)
     const char* screenshot_path = nullptr;
     // The remake's own options come out first; the rest is joined into a
     // DOS command tail for the original's switches.
@@ -130,6 +131,8 @@ int main(int argc, char* argv[])
             fix_bugs = true;
         } else if (strcmp(arg, "--square-pixels") == 0) {
             square_pixels = true;
+        } else if (strcmp(arg, "--dump-sounds") == 0 && i + 1 < argc) {
+            sound_dir = argv[++i];
         } else if (strcmp(arg, "--screenshot") == 0 && i + 2 < argc) {
             screenshot_scene = argv[++i];
             screenshot_path = argv[++i];
@@ -154,6 +157,13 @@ int main(int argc, char* argv[])
         return Replay(replay_path, trace_path);
     }
 
+    if (sound_dir) {
+        // No window or audio device needed.
+        SetTraceLogLevel(LOG_WARNING);
+        const int written = dump_sounds(sound_dir);
+        printf("%d sounds written to %s\n", written, sound_dir);
+        return written == 21 ? 0 : 1;
+    }
     if (screenshot_scene) {
         // A hidden window for the drawing; 77 tells CTest to skip without a display.
         SetTraceLogLevel(LOG_WARNING);
