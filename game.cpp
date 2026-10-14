@@ -197,6 +197,12 @@ void StartLife()
     wait_ticks = LIFE_WAIT_TICKS;
 }
 
+// The state and the view of the page on screen: what the last tick drew. The
+// original draws each tick on the hidden page and shows it at the next
+// retrace, while the score and lives digits go on both pages at once.
+OrigState shown_state;
+PlayView shown_view;
+
 // The raylib key of each entry of the key table (left, right, action, Esc,
 // F10, P), from the scan codes at 0xd41d.
 int table_keys[6] = {};
@@ -262,6 +268,8 @@ void EndOfPlay()
 
 void Tick()
 {
+    shown_state = orig;
+    shown_view = CurrentView();
     switch (phase) {
     case Phase::LifeWait:
         // 3b4c: 120 ticks or until a key. Then 3cdc reads that key: Esc ends
@@ -372,6 +380,17 @@ void InitGame(const std::array<Level, LEVEL_COUNT>& levels)
     SimInit(orig, levels);
     LoadHiScores(&orig.mem[addr::HISCORE_SCORES]); // 3475 at start-up
     UseKeyTable();
+    shown_state = orig;
+}
+
+const OrigState& ShownState()
+{
+    return shown_state;
+}
+
+PlayView ShownView()
+{
+    return shown_view;
 }
 
 void UseKeyTable()

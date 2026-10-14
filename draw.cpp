@@ -133,15 +133,15 @@ void DrawTextEGALarge(const char* text, int x, int y, Color tint)
 
 // Balls (564a): the 8x6 sprite at 0xa53, top-left at (x, y), rows below
 // y = 337 cut off.
-static void DrawBalls()
+static void DrawBalls(const OrigState& s)
 {
     static const struct {
         int left, width;
     } ball_rows[6] = { { 2, 4 }, { 1, 6 }, { 0, 8 }, { 0, 8 }, { 1, 6 }, { 2, 4 } };
     for (uint16_t i = addr::BALLS; i < addr::BALLS + 16 * 16; i += 16) {
-        if (!(orig.b(i + BALL_FLAGS) & BALL_ACTIVE))
+        if (!(s.b(i + BALL_FLAGS) & BALL_ACTIVE))
             continue;
-        int x = int16_t(orig.w(i + BALL_X)), y = int16_t(orig.w(i + BALL_Y));
+        int x = int16_t(s.w(i + BALL_X)), y = int16_t(s.w(i + BALL_Y));
         for (int row = 0; row < 6 && y + row <= 337; row++)
             DrawRectangle(x + ball_rows[row].left, y + row, ball_rows[row].width, 1, WHITE);
     }
@@ -329,7 +329,7 @@ void DrawHighScoreScreen(bool balls)
 {
     DrawHighScoreTable();
     if (balls)
-        DrawBalls();
+        DrawBalls(orig);
 }
 
 void DrawNameInput(int rank)
@@ -544,7 +544,7 @@ void DrawTitleScreen(int ticks)
     DrawSmallText("EVALUATION COPY    ", 0, 342, EGA_PALETTE[15]);
     if (ticks < 1)
         return; // the balls and the scroller appear on the first tick
-    DrawBalls();
+    DrawBalls(orig);
     // 633a / 6377: 20 characters at (240, 318) in colour 10, shifted left by
     // the scroller's pixel offset as it was before this tick moved it on.
     const int text_len = int(sizeof(SCROLL_TEXT)) - 1;
@@ -634,50 +634,50 @@ static void DrawProductionBoxes()
 }
 
 // Bricks, flashes, icons, the barrier, the bat, laser shots and balls.
-static void DrawPlayfield(const PlayView& view)
+static void DrawPlayfield(const OrigState& s, const PlayView& view)
 {
     // Bricks (5a1f): column c at x = 16 + 32c, row r at y = 12 + 12r.
     for (int c = 0; c < PLAY_COLS; c++) {
         for (int r = 0; r < PLAY_ROWS; r++) {
-            uint8_t type = orig.b(uint16_t(addr::BRICKS + c * PLAY_ROWS + r));
+            uint8_t type = s.b(uint16_t(addr::BRICKS + c * PLAY_ROWS + r));
             if (type > 0 && type < BRICK_COUNT)
                 DrawTexture(tex_bricks[type], PLAY_LEFT + c * BRICK_W, BRICK_TOP + r * BRICK_H, WHITE);
         }
     }
 
     // The page on screen is the one drawn last, before the flip.
-    const bool shown_page = orig.b(addr::PAGE) == 0;
+    const bool shown_page = s.b(addr::PAGE) == 0;
 
     // Flashing bricks (5b26): white on a page from the tick that page first
     // draws it until the tick it draws the brick again.
     const uint8_t flash_mask = shown_page ? 0x80 : 0x40;
     for (uint16_t e = addr::FLASH; e < addr::FLASH_COUNT; e += 3) {
-        if (orig.b(e + 2) & flash_mask)
-            DrawTexture(tex_bricks[FLASH_BRICK], PLAY_LEFT + orig.b(e) * BRICK_W, BRICK_TOP + orig.b(e + 1) * BRICK_H, WHITE);
+        if (s.b(e + 2) & flash_mask)
+            DrawTexture(tex_bricks[FLASH_BRICK], PLAY_LEFT + s.b(e) * BRICK_W, BRICK_TOP + s.b(e + 1) * BRICK_H, WHITE);
     }
 
     // Icons (5919): 16x12 at (x*8, y), cut off below y = 337.
     for (uint16_t i = addr::ICONS; i < addr::ICONS + 5 * 9; i += 9) {
-        if (!view.icons || !orig.b(i + ICON_ACTIVE))
+        if (!view.icons || !s.b(i + ICON_ACTIVE))
             continue;
-        int x = orig.w(i + ICON_X) * 8, y = orig.w(i + ICON_Y);
+        int x = s.w(i + ICON_X) * 8, y = s.w(i + ICON_Y);
         int h = 0x152 - y < ICON_FRAME_H ? 0x152 - y : ICON_FRAME_H;
-        int frame = orig.b(i + ICON_FRAME) / 2;
+        int frame = s.b(i + ICON_FRAME) / 2;
         if (h > 0 && frame < 68)
             DrawTextureRec(tex_icon_frames[ICON_SPRITE[frame]], { 0, 0, (float)ICON_SHEET_W, (float)h }, { (float)x, (float)y }, WHITE);
     }
 
     // Barrier line (5be5): 1 px at y = 335 from x = 15 to 463, while the shown
     // page has it drawn.
-    if (orig.b(addr::BARRIER_DRAWN) & (shown_page ? 2 : 1))
+    if (s.b(addr::BARRIER_DRAWN) & (shown_page ? 2 : 1))
         DrawRectangle(15, 335, 463 - 15 + 1, 1, EGA_PALETTE[15]);
 
     if (view.movers) {
         // The DOS bat is four EGA scanlines tall, from y = 329. Its first and
         // last lines leave one pixel clear at each end; the middle two span
         // its full width.
-        int bat_x = orig.w(addr::BAT_X);
-        int bat_w = orig.b(addr::BAT_W) * 8;
+        int bat_x = s.w(addr::BAT_X);
+        int bat_w = s.b(addr::BAT_W) * 8;
         DrawRectangle(bat_x + 1, 329, bat_w - 2, 1, WHITE);
         DrawRectangle(bat_x, 330, bat_w, 2, WHITE);
         DrawRectangle(bat_x + 1, 332, bat_w - 2, 1, WHITE);
@@ -685,67 +685,71 @@ static void DrawPlayfield(const PlayView& view)
         // Laser shots (5e23): 3x8 yellow, top-left at (x, y), cut off above the
         // playfield.
         for (uint16_t i = addr::LASERS; i < addr::LASERS + 4 * 16; i += 16) {
-            if (!(orig.w(i + LASER_ACTIVE) & 1))
+            if (!(s.w(i + LASER_ACTIVE) & 1))
                 continue;
-            int x = orig.w(i + LASER_X), y = orig.w(i + LASER_Y);
+            int x = s.w(i + LASER_X), y = s.w(i + LASER_Y);
             int top = y < BRICK_TOP ? BRICK_TOP : y;
             if (y + 8 > top)
                 DrawRectangle(x, top, 3, y + 8 - top, EGA_PALETTE[14]);
         }
 
-        DrawBalls();
+        DrawBalls(s);
     }
 }
 
-// The score panel of the play screen. Not yet laid out like the original
-// (TODO item 30).
-static void DrawScorePanel()
+// 3d00: 8x12 digit sprites from 8-px column `col`, up to the 0xff after the
+// digits; leading zeros are the blank sprite, the last digit is always drawn.
+static void DrawPanelDigits(const OrigState& s, uint16_t a, int col, int y)
 {
-    for (int y = 20; y <= 176; y += 52) {
-        DrawRectangle(524, y, 88, 44, EGA_PALETTE[7]);
-        DrawRectangle(524, y, 88, 1, WHITE);
-        DrawRectangle(524, y, 1, 44, WHITE);
-        DrawRectangle(611, y, 1, 44, EGA_PALETTE[8]);
-        DrawRectangle(524, y + 43, 88, 1, EGA_PALETTE[8]);
-        DrawRectangle(540, y + 14, 56, 18, BLACK);
-        DrawRectangle(539, y + 13, 58, 1, WHITE);
-        DrawRectangle(539, y + 13, 1, 20, WHITE);
+    bool leading = true;
+    for (; s.b(a) != 0xff; a++, col++) {
+        const uint8_t digit = s.b(a);
+        if (digit != 0 || s.b(uint16_t(a + 1)) == 0xff)
+            leading = false;
+        DrawTexture(tex_digits[leading ? 0 : digit + 1], col * 8, y, WHITE);
     }
-    DrawTextEGA("SCORE", 548, 23, BLACK);
-    DrawTextEGA("LEVEL", 548, 75, BLACK);
-    DrawTextEGA("BALLS", 548, 127, BLACK);
-    DrawTextEGA("BONUS", 548, 179, BLACK);
-    auto draw_panel_number = [](int value, int y) {
-        char digits[32];
-        snprintf(digits, sizeof(digits), "%d", value);
-        int length = strlen(digits);
-        int x = 592 - length * DIGIT_W;
-        for (int i = 0; i < length; i++)
-            DrawTexture(tex_digits[digits[i] - '0' + 1], x + i * DIGIT_W, y, WHITE);
-    };
-    auto digits = [](uint16_t a, int n) {
-        int value = 0;
-        for (int i = 0; i < n; i++)
-            value = value * 10 + orig.b(uint16_t(a + i));
-        return value;
-    };
-    draw_panel_number(digits(addr::SCORE, 6), 38);
-    draw_panel_number(digits(addr::LEVEL_DIGITS, 2), 90);
-    draw_panel_number(digits(addr::LIVES_DIGITS, 2), 142);
-    for (int b = 0; b < 5; b++) {
-        char bonusChar[2] = { "BONUS"[b], '\0' };
-        DrawTextEGA(bonusChar, 548 + b * 8, 194,
-            (orig.b(addr::LETTERS) & (1 << b)) ? EGA_PALETTE[14] : WHITE);
-    }
+}
 
+// The score panel of the play screen (3f08: boxes 0xaaf with sunken boxes
+// inset 17/13 px, labels 0xae9 in colour 0, "BONUS" 0xae3 in colour 7), the
+// numbers (391f: 5fc3, 5fd6, 5fe9) and the collected letters in colour 14 as
+// the page on screen last drew them (5e65 / 5e83).
+static void DrawScorePanel(const OrigState& page, const OrigState& now)
+{
+    for (int top : { 22, 74, 126, 178 }) {
+        DrawRaisedBox(524, top, 610, top + 42);
+        DrawSunkenBox(524 + 17, top + 13, 610 - 17, top + 42 - 13);
+    }
+    DrawSmallText("SCORE", 549, 25, EGA_PALETTE[0]);
+    DrawSmallText("LEVEL", 549, 77, EGA_PALETTE[0]);
+    DrawSmallText("BALLS", 549, 129, EGA_PALETTE[0]);
+    DrawSmallText("BONUS", 549, 181, EGA_PALETTE[0]);
+    DrawSmallText("BONUS", 549, 196, EGA_PALETTE[7]);
+    const uint8_t letters = page.b(uint16_t(addr::LETTERS_DRAWN + (page.b(addr::PAGE) ? 0 : 1)));
+    for (int i = 0; i < 5; i++) {
+        if (letters & (1 << i)) {
+            const char letter[2] = { "BONUS"[i], 0 };
+            DrawSmallText(letter, 549 + 8 * i, 196, EGA_PALETTE[14]);
+        }
+    }
+    // The score and the lives are drawn on both pages at once (3d00 with
+    // dl = 1), so they change on screen a tick before the sprites do.
+    DrawPanelDigits(now, addr::SCORE, 68, 37);
+    DrawPanelDigits(page, addr::LEVEL_DIGITS, 72, 89);
+    DrawPanelDigits(now, addr::LIVES_DIGITS, 72, 141);
+}
+
+void DrawPlay(const OrigState& page, const OrigState& now, const PlayView& view)
+{
+    DrawFrame();
+    DrawScorePanel(page, now);
+    DrawProductionBoxes();
+    DrawPlayfield(page, view);
 }
 
 void DrawPlay(const PlayView& view)
 {
-    DrawFrame();
-    DrawScorePanel();
-    DrawProductionBoxes();
-    DrawPlayfield(view);
+    DrawPlay(orig, orig, view);
 }
 
 void DrawDemo()
@@ -765,5 +769,5 @@ void DrawDemo()
     DrawCodedText("to play", 65, 156, colour);
     DrawCodedText("\x81Paranoid\x80", 67, 177, colour);
     DrawProductionBoxes();
-    DrawPlayfield(PlayView {});
+    DrawPlayfield(orig, PlayView {});
 }

@@ -48,6 +48,10 @@ struct PlayView {
     bool movers = true; // balls, bat and laser shots
 };
 PlayView CurrentView();
+// The play screen on show during the current tick: the state and the view
+// as the previous tick left them (draw the score and lives from `orig`).
+const OrigState& ShownState();
+PlayView ShownView();
 
 // A hardware-scroll transition (6555 / 658d): the display shows two pages
 // 352 lines apart in video memory, from `line`. In: the page with the play

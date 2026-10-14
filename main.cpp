@@ -314,7 +314,7 @@ int main(int argc, char* argv[])
                 DrawHighScoreTable();
                 DrawNameInput(NameEntryRank());
             } else {
-                DrawPlay(CurrentView());
+                DrawPlay(ShownState(), orig, ShownView());
             }
             break;
         }

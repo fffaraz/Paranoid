@@ -736,7 +736,8 @@ every line of `5b26`/`5bbd`, and the flash table matches the trace in all
 
 **Original:**
 - Points go into a pending counter (`0xd399`) and are added to the displayed
-  score one point per 2 ticks (`5ee1`: divider `0xd398` = 2).
+  score one point per **3** ticks (`5ee1`: the divider `0xd398` is reloaded
+  with 2 and counts 2, 1, 0; checked on the original's screen, item 30).
 - On each increment, `5f79` compares the score with the next threshold. When
   reached: lives +1 (`259a`), play sound **`0xD3C`**, threshold += 4000.
 - The +500 icon (`253f`) and the letter bonus (`3ad1`, +200 out of order /
@@ -757,7 +758,9 @@ sound plays at 4000, 8000, …
 it needs play traces (V3). The demo trace confirms nothing; the demo doesn't
 call `5ee1` (points stay pending), and no extra ball happens. `snd_extra_life`
 isn't needed: `0xD3C` is the extra-life pickup sound, played through
-`play_pattern`.
+`play_pattern`. Since item 30 the count-up itself is confirmed on
+the original's screen (one point per 3 ticks, every frame of a no-key game
+matches); the extra ball at 4000, 8000, ... is still unconfirmed.
 
 ### [x] 14. Fix the sound-effect mapping
 
@@ -1385,7 +1388,7 @@ it needs play traces (V3). The demo trace confirms nothing; no life is lost in
 the demo. `SimLifeStart` resets only what `3610` resets, so falling icons and
 the barrier survive.
 
-### [ ] 30. Screen layout pixel fixes
+### [x] 30. Screen layout pixel fixes
 
 Coordinates the remake has slightly wrong, taken from the drawing tables:
 
@@ -1430,6 +1433,25 @@ Coordinates the remake has slightly wrong, taken from the drawing tables:
 
 Dump any table with a small script (offset = address − 0x100; words are
 little-endian; `0xFFFF` ends a list).
+
+**Done:** the barrier (since Step 4), the playfield frame, "PARANOID" and
+the production boxes (item 21), the title (item 23), and now the score
+panel (`DrawScorePanel`): boxes `0xaaf` (raised, with sunken boxes inset
+17/13 px), labels `0xae9` in colour 0 through `3da6` (7-row small font),
+"BONUS" at (549, 196) in colour 7 with the collected letters in colour 14
+as the page on screen drew them (`0xd25a`/`0xd25b`), and the digits as
+`3d00` draws them: 8x12 sprites from byte column 68 (score, y 37) and 72
+(level y 89, balls y 141), leading zeros as the blank sprite. Also found:
+the score and lives digits are drawn on **both pages at once** (`3d00` with
+`dl = 1` from `5ee1`, `253f`, `3ad1`, `259a`, `3a59`), so on screen they
+change a tick before the sprites. `game.cpp` keeps the state of the page on
+screen (`ShownState`, taken at the start of each tick) and `main.cpp` draws
+the play screen from it with the digits from the current state. Checked
+against the original (`tools/grab_original.sh`, matched by hash on the
+whole screen): every grab of a no-key game from the first "Level 01" to
+game over, and of the 0-bricks game of item 24, is pixel-identical,
+including the score counting up; the game-over screen of item 16 differs in
+0 pixels. Not seen on the original's screen yet: collected BONUS letters.
 
 ### [ ] 31. F10 shows the registration screen before quitting
 

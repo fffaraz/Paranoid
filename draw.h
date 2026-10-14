@@ -45,6 +45,11 @@ void DrawInfoPage(int page);
 // The title screen (6367) after `ticks` ticks of its loop.
 void DrawTitleScreen(int ticks);
 struct PlayView;
+struct OrigState;
 void DrawPlay(const PlayView& view);
+// The play screen as the original shows it during a tick: the page drawn in
+// the tick before (`page`), with the score and lives digits already updated
+// (`now`).
+void DrawPlay(const OrigState& page, const OrigState& now, const PlayView& view);
 // The attract mode's demo screen (3fde) with the playfield.
 void DrawDemo();
