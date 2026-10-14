@@ -2,6 +2,7 @@
 
 #include "draw.h"
 #include "hiscore.h"
+#include "keymap.h"
 
 #include <raylib.h>
 
@@ -196,34 +197,40 @@ void StartLife()
     wait_ticks = LIFE_WAIT_TICKS;
 }
 
+// The raylib key of each entry of the key table (left, right, action, Esc,
+// F10, P), from the scan codes at 0xd41d.
+int table_keys[6] = {};
+
+bool Down(int key) { return key != 0 && IsKeyDown(key); }
+
 // The keyboard handler (5045) sets a key's byte on a press and clears it on a
 // release. The action and pause handlers clear their byte themselves, so
 // those two are set only on a press or a key repeat, as with a DOS keyboard.
 void PressKeys()
 {
-    auto pressed = [](int key) { return IsKeyPressed(key) || IsKeyPressedRepeat(key); };
-    if (pressed(KEY_P))
+    auto pressed = [](int key) { return key != 0 && (IsKeyPressed(key) || IsKeyPressedRepeat(key)); };
+    if (pressed(table_keys[key::PAUSE]))
         orig.b(addr::KEYS + key::PAUSE) = 1;
-    if (pressed(KEY_SPACE))
+    if (pressed(table_keys[key::ACTION]))
         orig.b(addr::KEYS + key::ACTION) = 1;
 }
 
 // Released after the tick, so a press shorter than a frame still counts.
 void ReleaseKeys()
 {
-    if (!IsKeyDown(KEY_SPACE))
+    if (!Down(table_keys[key::ACTION]))
         orig.b(addr::KEYS + key::ACTION) = 0;
-    if (!IsKeyDown(KEY_P))
+    if (!Down(table_keys[key::PAUSE]))
         orig.b(addr::KEYS + key::PAUSE) = 0;
 }
 
 void HeldKeys()
 {
     // Remake addition: the arrow keys move the bat too.
-    orig.b(addr::KEYS + key::LEFT) = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_LEFT);
-    orig.b(addr::KEYS + key::RIGHT) = IsKeyDown(KEY_RIGHT_SHIFT) || IsKeyDown(KEY_RIGHT);
-    orig.b(addr::KEYS + key::ESC) = IsKeyDown(KEY_ESCAPE);
-    orig.b(addr::KEYS + key::F10) = IsKeyDown(KEY_F10);
+    orig.b(addr::KEYS + key::LEFT) = Down(table_keys[key::LEFT]) || IsKeyDown(KEY_LEFT);
+    orig.b(addr::KEYS + key::RIGHT) = Down(table_keys[key::RIGHT]) || IsKeyDown(KEY_RIGHT);
+    orig.b(addr::KEYS + key::ESC) = Down(table_keys[key::ESC]);
+    orig.b(addr::KEYS + key::F10) = Down(table_keys[key::F10]);
 }
 
 // After the settle phase: next life, next level or the end (39c3).
@@ -364,6 +371,21 @@ void InitGame(const std::array<Level, LEVEL_COUNT>& levels)
 {
     SimInit(orig, levels);
     LoadHiScores(&orig.mem[addr::HISCORE_SCORES]); // 3475 at start-up
+    UseKeyTable();
+}
+
+void UseKeyTable()
+{
+    for (int i = 0; i < 6; i++) {
+        const uint8_t code = orig.b(uint16_t(addr::KEY_CODES + 2 * i)), second = orig.b(uint16_t(addr::KEY_CODES + 2 * i + 1));
+        int key = code == 0xe0 ? RaylibKeyForScanCode(second, true) : RaylibKeyForScanCode(code, false);
+        // 5045 updates only the first entry that matches a key.
+        for (int j = 0; j < i; j++) {
+            if (table_keys[j] == key)
+                key = 0;
+        }
+        table_keys[i] = key;
+    }
 }
 
 void StartGame(int level)

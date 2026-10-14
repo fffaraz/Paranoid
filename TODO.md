@@ -1276,7 +1276,7 @@ in the remake now takes 125 ticks from the last ball lost to the next life
 "bat gone" screen stays for about 1.7 s, and the remake's frames match it
 (the settle picture from tick 784, the next life from tick 908).
 
-### [ ] 26. Custom keys (`/K llrraa`)
+### [x] 26. Custom keys (`/K llrraa`)
 
 **Original (`6160`):** three hex scan codes for left, right and action. A code
 starting with `E0` uses two bytes (`/K E04BE04D39` = arrow keys + Space).
@@ -1288,6 +1288,21 @@ taking the same string. Map PC set-1 scan codes to raylib `KEY_*` with a
 table, and fall back to the defaults on a bad code with the original
 "Bad command-line switch" message. Keep the arrow keys working by default as
 well — the remake already allows them.
+
+**Done:** `/K` or `-K` (either case), with the codes in the same argument
+(`/KE04BE04D39`) or the next one (`/K 2a3639`). `ParseKeySwitch`
+(`keymap.cpp`) is `6160`/`61ea`: spaces only before the codes, two hex
+digits each in either case, `E0` takes a second byte; anything else prints
+the original's message (`0x2ca`) and exits with 1, as the original does.
+The codes go into the original's key table at `0xd41d` (only the first
+byte for a one-byte code), and `game.cpp` now takes all six keys from that
+table (`UseKeyTable`, scan codes mapped by `RaylibKeyForScanCode`) instead
+of hard-coding them. As in `5045`, a key drives only the first table entry
+it matches (so `/K 191e39` makes P the left key, and P no longer pauses).
+The arrow keys still move the bat as well (user's decision). Checked: the
+parser on good and bad strings, the scan-code mapping for the defaults and
+the arrow keys, and the binary with a bad `/K` (message, exit 1) and good
+ones (runs). Not checked with a person pressing the keys.
 
 ### [ ] 27. Command-line errors
 

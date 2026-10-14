@@ -71,6 +71,7 @@ constexpr uint16_t SCORE = 0xd39b; // 6 decimal digits, most significant first
 constexpr uint16_t EXTRA_BALL_AT = 0xd3a2; // 6 decimal digits
 constexpr uint16_t LEVEL_DIGITS = 0xd3a8;
 constexpr uint16_t LIVES_DIGITS = 0xd3ab;
+constexpr uint16_t KEY_CODES = 0xd41d; // scan codes of the 6 keys, 2 bytes each (/K changes the first 3)
 constexpr uint16_t KEYS = 0xd42a; // 1 while held, see key::
 }
 

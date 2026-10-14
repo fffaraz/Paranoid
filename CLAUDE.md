@@ -28,6 +28,7 @@ The game loads `BITMAPS.PAR`, `FONTS.PAR` and `LEVELS.PAR` from `.`,
   (life wait, play, settle, next level) and the key mapping; `UpdatePlay`.
 - `replay.h` / `replay.cpp`: headless `--replay` of a demo trace through `sim`.
 - `hiscore.h` / `hiscore.cpp`: `HiScores.PAR` load/save and the default table.
+- `keymap.h` / `keymap.cpp`: PC scan codes to raylib keys, and the `/K` switch.
 - `draw.h` / `draw.cpp`: EGA palette, textures, text, `DrawTitleScreen`,
   `DrawPlay` (draws from `OrigState`).
 - `main.cpp`: start-up, the state machine and the simple screens.

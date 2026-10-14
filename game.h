@@ -37,6 +37,8 @@ extern OrigState orig; // the original's memory, see sim.h
 extern bool quit_requested; // F10 during play
 
 void InitGame(const std::array<Level, LEVEL_COUNT>& levels);
+// Take the keys from the original's key table (0xd41d), after /K changed it.
+void UseKeyTable();
 void StartGame(int level); // level 1..30
 void UpdatePlay(float dt);
 // What DrawPlay shows of the moving things. The original erases them in

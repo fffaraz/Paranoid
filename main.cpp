@@ -2,6 +2,7 @@
 #include "draw.h"
 #include "fonts.h"
 #include "game.h"
+#include "keymap.h"
 #include "levels.h"
 #include "replay.h"
 #include "sound.h"
@@ -50,12 +51,25 @@ int Replay(const char* ref_path, const char* out_path)
     return RunReplay(ref_path, out_path, levels);
 }
 
+// 0x2ca, printed when a switch is wrong.
+static int BadSwitch()
+{
+    printf("Bad command-line switch.  Available switches are:\n\n"
+           "    /Q - run quietly, ie disable sound effects\n"
+           "    /V - skip video mode auto-detect\n"
+           "    /K llrraa - use alternative control keys\n\n"
+           "See Paranoid.DOC for details.\n");
+    return 1;
+}
+
 int main(int argc, char* argv[])
 {
     const char* replay_path = nullptr;
     const char* trace_path = nullptr;
     int starting_level = 1; // remake addition: -l N
     bool quiet = false;
+    bool custom_keys = false;
+    uint8_t key_codes[3][2] = {};
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) {
             int lvl = atoi(argv[++i]);
@@ -63,6 +77,12 @@ int main(int argc, char* argv[])
                 starting_level = lvl;
         } else if ((argv[i][0] == '-' || argv[i][0] == '/') && (argv[i][1] | 0x20) == 'q' && argv[i][2] == 0) {
             quiet = true; // 6154: no sound effects
+        } else if ((argv[i][0] == '-' || argv[i][0] == '/') && (argv[i][1] | 0x20) == 'k') {
+            // 6160: /K llrraa, the codes in the same argument or the next.
+            const char* codes = argv[i][2] ? argv[i] + 2 : (i + 1 < argc ? argv[++i] : "");
+            if (!ParseKeySwitch(codes, key_codes))
+                return BadSwitch();
+            custom_keys = true;
         } else if (strcmp(argv[i], "--replay") == 0 && i + 1 < argc) {
             replay_path = argv[++i];
         } else if (strcmp(argv[i], "--trace") == 0 && i + 1 < argc) {
@@ -123,6 +143,15 @@ int main(int argc, char* argv[])
     SetTargetFPS(60);
     InitGame(levels);
     orig.b(addr::QUIET) = quiet ? 1 : 0;
+    if (custom_keys) {
+        // Only the first byte is written for a one-byte code (6174).
+        for (int k = 0; k < 3; k++) {
+            orig.b(uint16_t(addr::KEY_CODES + 2 * k)) = key_codes[k][0];
+            if (key_codes[k][0] == 0xe0)
+                orig.b(uint16_t(addr::KEY_CODES + 2 * k + 1)) = key_codes[k][1];
+        }
+        UseKeyTable();
+    }
     StartTitle();
 
     while (!WindowShouldClose()) {
