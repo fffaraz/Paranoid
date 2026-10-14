@@ -1077,10 +1077,9 @@ all 65 grabs of demo level 02 are pixel-identical to the remake's frames
 (up to tick 1010); the play screen now matches everywhere except the score
 panel boxes and digits, (524,20)–(611,220), which are item 30. The attract
 order in the remake is 02, 05, 06, 09, 10, 07, 04, 03, 01, 08, 02, ... at
-1024 ticks each. **Not ported:** the demo leaves its last sound request
-pending (`52df` sets `0xcf0f`; `39f3` resets only the priority `0xcf0e`),
-so the original probably plays one stale demo sound on the first play tick
-of a game.
+1024 ticks each. (The demo's sound requests stay pending in `0xcf0e..`,
+but `39f3` sets the priority to 0 at game start and `521a` then does
+nothing, so no stale sound plays; the sound player is ported since item 25.)
 
 ### [x] 22. F1 information: five pages
 
@@ -1252,7 +1251,7 @@ bounce.
 
 ## Part D — options
 
-### [ ] 25. Quiet mode (`/Q`)
+### [x] 25. Quiet mode (`/Q`)
 
 **Original:** `/Q` (or `-q`; handlers at `0x121`) sets `0xced1`. The sound
 player (`521a`) then does nothing.
@@ -1260,6 +1259,22 @@ player (`521a`) then does nothing.
 **Remake:** add `-q` / `/q` to the argument loop in `main()` (`main.cpp` ~34) and make
 `play_sound` return early. A key to toggle sound during play is a nice extra
 but isn't in the original.
+
+**Done:** `-q`, `/q`, `-Q`, `/Q` (the original lowercases the switch letter
+and takes `/` or `-`) set `0xced1`, and no sound is played. More than a
+mute, as found in `521a`: while a sound plays, the player clears the settle
+flag `0xd254`, so **the settle phase after a lost ball or a cleared level
+lasts until the sound ends** (about 125 ticks for the ball-lost tune), and
+in quiet mode it doesn't. So the sound player's state is now ported:
+`sim.cpp` has `52df` (a sound starts only if its priority is >= the one
+playing; the pattern bytes `0xc7c..0xd83` are embedded) and `521a` (one
+tick, without the speaker), called where the original calls them (end of
+each play tick, each settle pass). `play_pattern` no longer has its own
+priorities; it plays what the simulation started. Checked: a no-key game
+in the remake now takes 125 ticks from the last ball lost to the next life
+(2 with `-q`); in the original capture of the same game (item 16) the
+"bat gone" screen stays for about 1.7 s, and the remake's frames match it
+(the settle picture from tick 784, the next life from tick 908).
 
 ### [ ] 26. Custom keys (`/K llrraa`)
 
@@ -1310,6 +1325,8 @@ flash and score steps (needs items 12 and 13).
 it needs play traces (V3). The demo trace confirms nothing; the settle loop
 isn't traced. Ported as `SimSettleStep`, used by `game.cpp`. What the
 screen shows during it is done (item 16: balls, bat and shots erased).
+Since item 25 it also runs the sound player, so it waits for the sound to
+end, as the original does.
 
 ### [ ] 29. What survives a lost life
 
