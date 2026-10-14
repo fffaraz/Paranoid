@@ -174,7 +174,10 @@ straight up; the ball can't be saved once it is past y = 323.
 ### [ ] 4. Ball collision box and multi-brick hits
 
 **Original:**
-- The ball is an **8×6** box.
+- The ball is an **8×6** box. Its (x, y) is the **top-left corner**. The
+  remake currently uses the centre (`y = paddle.y - 4`), so change every
+  constant to the original's meaning (bat top = 329, ball rests on it at
+  y = 323; barrier stop at y = 328; lost at y > 337).
 - Walls (`2b8c`): x < 16 → x = 16; x > 456 → x = 456; dx is negated (except
   for stuck balls), sound `0xC83`. y < 12 → y = 12, dy negated, sound `0xC8A`.
 - Bricks (`2693`, `2858`, `290d`): bricks are 32×12; grid col =
@@ -355,6 +358,7 @@ The play sites in the original (`grep -n 'mov di, 0xc' PARANOID.asm`):
 | Last ball lost (every life) | `0xCC5` (`36d7`) | only at game over |
 | Level cleared | `0xCDE` (`36e3`) | ok |
 | Extra ball | `0xD3C` (`5f89`) | missing (item 13) |
+| Skip-level icon caught | its pickup sound, then `0xCDE` when the level ends (`36c7` → `36e3`) | pickup sound only |
 
 Also rename `snd_paddle`/`snd_paddle_catch`/`snd_game_over` in `sound.h` to
 say what they really are (brick bounce / bat hit / ball lost), and fix the
@@ -370,21 +374,28 @@ priorities in `main.cpp` match those first bytes.
 
 ### [ ] 15. "Level xx" screen before each level
 
-**Original (`37db` → `382c`):** clear both pages and draw a message box
-(`44ac`). The box data at `0x9b2` is: width 14, height 3, then the text
+**Original (`37db` → `382c`):** clear both pages and show a message
+(`44ac`). The message data at `0x9b2` is: width 14, height 3, then the text
 `"   Level xx"` with xx replaced by the two-digit level (leading zero kept:
 "Level 01"). Wait 240 ticks or a key (`3b29`). Then draw the play screen and
-play the scroll/bounce transition (item 23). Between levels there is first a
+play the scroll/bounce transition (item 24). Between levels there is first a
 30-tick pause (`38b7`).
 
+**How `44ac` draws messages** (used by items 15, 16, 17 and 19): there is
+**no box**. The lines are drawn as white (colour 15) 14-px text on top of
+whatever is on screen. Data format: `word width_in_chars, word line_count`,
+then NUL-terminated lines.
+- Position: col = `(80 - width) / 2`, or `(80 - width)/2 - 10` when called with
+  `dl = 1`, which centres it over the 480-px playfield. y = `(350 - lines*14) / 2`.
+- "Level xx" uses `dl = 0` (whole screen). Game Over, the ending and
+  New High Score use `dl = 1`.
+
 **Remake:** none. `LoadLevel` goes straight to play. Add a `STATE_LEVEL_INTRO`.
-Read `44ac` for the box style and position (it is shared with items 16, 17
-and 19).
 
 ### [ ] 16. Game-over sequence
 
-**Original (`3ab5`):** draw message box `0x8c0` (width 16, height 3,
-`"   Game  Over   "`) over the screen, wait 240 ticks or a key, then go to the
+**Original (`3ab5`):** show message `0x8c0` (width 16, height 3,
+`"   Game  Over   "`, centred over the playfield, see item 15), wait 240 ticks or a key, then go to the
 high-score check (item 19), then back to the attract loop.
 
 **Remake:** a separate `STATE_GAMEOVER` screen where Space restarts the game
@@ -392,7 +403,7 @@ straight away (`main.cpp` ~1106–1115, ~1149–1152). Replace it.
 
 ### [ ] 17. Ending message after level 30
 
-**Original (`3caf`):** message box `0x8d7` (42 wide, 9 high) with these lines,
+**Original (`3caf`):** message `0x8d7` (42 wide, 9 lines, item 15 style) with these lines,
 then wait for a key (`4f72`), then the high-score check:
 
 ```
@@ -443,12 +454,20 @@ a warning) if the write fails.
 1. `49c9` finds the rank, comparing digit by digit from the bottom (`4866`).
 2. If the score qualifies, `49ec` shifts lower entries down and `4945` writes
    the score and level and clears the name.
-3. Show message box `0x597` (20×7): `" Congratulations !!"`,
-   `"   New High Score"`, `" Congratulations !!"`. Wait 200 ticks or a key.
+3. Show message `0x597` (20 wide, 7 lines, item 15 style):
+   `" Congratulations !!"`, `"   New High Score"`, `" Congratulations !!"`.
+   Wait 200 ticks or a key.
 4. Draw the table (`4a3a`) and let the player type a name on their row
-   (`48c0` → `4f7f`): yellow (colour 14) on grey (7), up to 15 characters.
-   Read `4f7f` for the allowed characters, Backspace and Enter (it checks
-   `\b`, `\r`, space and `a..z`).
+   (`48c0` → `4f7f`). The text is yellow (colour 14) and the cursor is drawn
+   in colour 7 (`470b`/`46bf`). Limit 15 characters (`0xd36a = 15`). The
+   routine uses BIOS `int 16h` key codes:
+   - Backspace (`0x08`) deletes the last character; nothing happens if the name
+     is empty.
+   - Enter (`0x0D`) finishes.
+   - Characters `0x20..0x5F` and `a..z` are accepted (the font has lower case
+     at `0xc364`). Anything else is ignored.
+   - When the name is full, more characters are ignored.
+   - The finished name is copied into the table row and NUL-terminated.
 5. Save (`34d7`).
 
 **Table layout (`4a53`):**
@@ -645,3 +664,108 @@ well — the remake already allows them.
 ("Bad command-line switch. Available switches are: /Q … /V … /K …") and exits.
 `/V` (skip the video check) can be accepted and ignored. Keep the remake's
 `-l N` level switch, and list it in the help text.
+
+---
+
+## Part E — found in a second pass
+
+### [ ] 28. Settle phase after a level ends or the last ball is lost
+
+**Original (`36fd`, called at the end of `3658` for every result):** the game
+doesn't switch screens straight away.
+1. It redraws twice.
+2. It keeps looping, with the ball, bat and lasers frozen and icons drawn but
+   not moving, while running:
+   - the brick-flash countdown (`5b26`),
+   - the score count-up (`5ee1`),
+   - the sound player (`521a`).
+3. It leaves the loop only when no flash is left **and** no pending points are
+   left (`0xd254` stays 1).
+4. Then it clears balls (`375b`), lasers (`3778`) and `37b8`.
+
+So after the last brick breaks, the player sees it flash and the score finish
+counting before the next screen appears. The same happens after losing a ball.
+
+**Remake:** `UpdatePlay` calls `LoadLevel`/`StartLife` at once
+(`main.cpp` ~589–599, ~859–867). Add a short settle state that runs only the
+flash and score steps (needs items 12 and 13).
+
+### [ ] 29. What survives a lost life
+
+**Original:** `3610` (new life) and `3904` reset only:
+- bat x and width, and bat mode (sticky/laser off),
+- split count (`0xd255`) and through pending (`0xd256`),
+- the score divider, the icon dividers and the speed-up timer,
+- the ball (a new one).
+
+These are **not** reset on a lost life; they are cleared only at level start
+(`3863`):
+- **Falling icons** (`3798`, the icon slots, is called only from `3863`). An
+  icon still falling when the ball is lost keeps falling in the next life (it
+  is frozen during the settle phase, item 28).
+- **Barrier** (`0xd257` is cleared only at `2cfa` when used, and in `3863`).
+  In practice this rarely shows: a barrier is used up by the first ball that
+  reaches it. It only matters if the icon is caught while the last ball is
+  already below y = 328.
+- **Bonus letters** (`0xd259/0xd262/0xd263`). The remake already keeps these.
+
+**Remake:** `StartLife` clears `powerups[]` and `ResetPowerups` clears
+`barrier_active` (`main.cpp` ~396–449). Keep the falling icons and the
+barrier flag across lives.
+
+**Accept:** with an icon falling when the last ball is lost, the same icon is
+still falling after the new ball appears, and it can be caught.
+
+### [ ] 30. Screen layout pixel fixes
+
+Coordinates the remake has slightly wrong, taken from the drawing tables:
+
+- **Barrier line** (`5be5` → `419c(x1=15, x2=463, y=335, colour)`): a 1-px
+  white (colour 15) line at **y = 335** from x = 15 to 463, erased with colour
+  0 when the barrier goes away. The remake draws a 2-px line at y = 328
+  (`main.cpp` ~925). (The ball's 6-px box stops at y = 328, so its bottom edge
+  touches this line.)
+- **"PARANOID" across the bottom of the playfield** (`483c`): large-font glyphs
+  from `0x550` at **x = 147, y = 255**, colour 8, 24 px apart. The remake uses
+  (144, 256) (`main.cpp` ~929).
+- **Title-screen "PARANOID"** (`6299`): x = 229, y = 126. The remake uses
+  (224, 119) (`main.cpp` ~204).
+- **Side panel** (`3f08`, tables `0xaaf` and `0xae9`):
+  - Raised boxes (`42f2`) at (524,22)–(610,64), (524,74)–(610,116),
+    (524,126)–(610,168), (524,178)–(610,220).
+  - Each has a sunken inner box (`4372`) inset by 17 px horizontally and 13 px
+    vertically.
+  - Labels SCORE/LEVEL/BALLS/BONUS at x = 549, y = 25/77/129/181.
+  - The remake draws 88×44 boxes at y = 20/72/124/176 and labels at x = 548,
+    y = 23/75/127/179 (`main.cpp` ~889–954).
+  - Digits: score 6 digits from x = 544, y = 37 (`5fc3`); level 2 digits from
+    x = 576, y = 89 (`5fd6`); balls 2 digits from x = 576, y = 141 (`5fe9`).
+    Leading zeros are drawn as the blank digit (`3d00`).
+  - Read `42f2`/`4372` for the exact raised/sunken edge colours, and the
+    "Paranoid is a Bit Bucket Brothers production" boxes from table `0xb03`
+    and texts from `0xb15` (`3f9a`).
+- **Playfield frame** (`3f08`): raised (0,0)–(479,349), sunken (15,11)–(463,337),
+  raised (496,0)–(639,349). Compare with `DrawPlay`.
+
+Dump any table with a small script (offset = address − 0x100; words are
+little-endian; `0xFFFF` ends a list).
+
+---
+
+## Out of scope (in the binary, but don't port)
+
+- **Video card detection** (`609b`, `651b`) and the 256 KB / EGA error
+  messages. Accept `/V` and ignore it.
+- **File-check messages** ("The following files are missing or corrupt",
+  `5ffc`/`6041`). The remake has its own error messages; keep those.
+- **Level data decryption** (`35a2`, key at `0x61c0`). Already done in
+  `levels.cpp`.
+- **Keyboard interrupt handler and double-buffered EGA pages** (`5045`,
+  `653b`, `6637`/`6665`). raylib replaces them; only their behaviour matters
+  (items 18, 24, 26).
+- **Leftover switch code** at `619c` that reads a level-file name into the
+  `Levels.PAR` name buffer (`0x804e`). It isn't in the switch table at
+  `0x121` (only Q, V, K are), so it can't be reached in v1.8. It is probably
+  from the registered version.
+- **Registered-only features** listed in `PARANOID.DOC` (cheat, save game,
+  30 extra levels, level designer). They aren't in this binary.
