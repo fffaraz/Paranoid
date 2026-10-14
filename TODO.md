@@ -1,6 +1,6 @@
 # TODO — make the remake match PARANOID v1.8
 
-This list compares the remake (`main.cpp`, `sound.cpp`) with the original game's
+This list compares the remake with the original game's
 disassembly (`paranoid-v1.8/PARANOID.asm`, a radare2 dump of `PARANOID.COM`).
 Each item can be done on its own. Work through them roughly in order. **Part 0**
 sets up comparison against the real game in DOSBox-X (installed at
@@ -10,6 +10,47 @@ items in Part A change the simulation timing that later items rely on.
 When an item is done, tick its box, build, and check it: run the matching
 trace or screenshot comparison from Part 0 where there is one, otherwise play
 the affected part of the game.
+
+**Source layout of the remake** (split out of the old single `main.cpp` with
+no change in behaviour):
+- `game.h` / `game.cpp`: simulation state and `UpdatePlay`.
+- `draw.h` / `draw.cpp`: palette, textures, text, `DrawTitleScreen`,
+  `DrawPlay`.
+- `main.cpp`: start-up, the state machine and the simple screens.
+- `bitmaps`, `fonts`, `levels`, `sound`: the data loaders and sound player.
+
+Line references below (`game.cpp` ~NNN) are approximate.
+
+## Decisions
+
+Decided by the user:
+- **Item 24 (screen transitions) is wanted.**
+- **`HiScores.PAR` is read and written in the current working directory**
+  (item 19), not next to the data files. Create it there with the default
+  table if it is missing.
+
+**Still open — ask the user before choosing, and don't pick a default:**
+- Reproduce the original's bugs or keep the intended behaviour: the bonus
+  letters (item 32), the bat-direction quirk (item 2), and any others found
+  later.
+- Keep, remove or make optional the remake's additions that the original
+  doesn't have: arrow keys, the `-l N` level switch, the resizable window, the
+  "PAUSED" banner (item 18).
+- Defaults for the display: 4:3 aspect on or off (V7). The tick rate is
+  70 Hz either way; that is what the reference traces use.
+
+## How to do Part A
+
+Items 1–11 all rewrite the same simulation code in `game.cpp`. Don't patch the
+float-based `UpdatePlay` item by item. Do **one literal port** instead:
+- Keep the state in a struct laid out like the original's memory (the RAM map
+  below, `tools/trace_format.py`).
+- Write one function per original routine, named after its address (for
+  example `fcn_2bec_bat_collision()`), as integer code.
+- Run it once per 70 Hz tick, and draw from that state.
+
+Use items 1–11 as the checklist and `demo.trace` (V3/V4) as the test. Tick
+each of items 1–11 when the trace matches for the behaviour it describes.
 
 ---
 
@@ -111,7 +152,7 @@ and the keys held. So an exact port must reproduce the original's memory
 Put the tools under `tools/` and the reference data under `tests/reference/`.
 Add the DOSBox-X output folders to `.gitignore`.
 
-### [ ] V1. DOSBox-X setup for the original
+### [x] V1. DOSBox-X setup for the original
 
 Create `tools/dosbox/paranoid.conf` and start it with
 `dosbox-x -conf tools/dosbox/paranoid.conf`. Use `-fastlaunch`, and
@@ -137,7 +178,18 @@ to `tests/capture/`.
 **Accept:** one command starts the original, and closing it leaves the repo
 unchanged except for `tests/capture/`.
 
-### [ ] V2. Trace build of the original (`PARTRACE.COM`)
+**Done:** `tools/dosbox/paranoid.conf` and `tools/run_original.sh`. Options:
+- `--trace` runs `PARTRACE.COM` and copies `TRACE.BIN` to `tests/capture/`.
+- `--type "ARGS"` passes keys to DOSBox-X `AUTOTYPE`; `--type "-w 4 space"`
+  gets past the title screen.
+- `--time-limit N` stops DOSBox-X after N seconds.
+- `--keep-hiscores` keeps the high-score file between runs.
+
+Checked: the trace has 1024 demo ticks per demo level, separated by
+1024-tick high-score screens. That matches about 70 ticks per second in real
+time, so the machine setting gives 70 Hz.
+
+### [x] V2. Trace build of the original (`PARTRACE.COM`)
 
 Write `tools/make_trace_com.py`. It reads `PARANOID.COM` and writes a patched
 `PARTRACE.COM` that saves a snapshot of the game state once per tick.
@@ -186,6 +238,19 @@ Write `tools/make_trace_com.py`. It reads `PARANOID.COM` and writes a patched
 **Accept:** running the demo for one full cycle (10 demo levels) gives a
 `TRACE.BIN` in which the ball positions change by dx/dy each tick and the
 level byte follows `2,5,6,9,10,7,4,3,1,8`.
+
+**Done:**
+- `tools/make_trace_com.py` writes `PARTRACE.COM`. It checks the file size and
+  both hooked `call 653b` instructions before patching. The routine sits at
+  `0x66be–0x6781`; nothing in the program uses that range, and DOS starts a
+  COM program's stack at the top of the segment.
+- `tools/trace_format.py` defines the layout (2088 bytes per record) and
+  names the fields. `tools/trace_dump.py` prints records or a `--summary`.
+- The format is documented in `tools/TRACE_FORMAT.md`. One correction to the
+  table above: in the demo, `level` (`0xd24f`) isn't set, so use
+  `level_digits` (`0xd3a8`).
+- Record a trace with
+  `tools/run_original.sh --trace --type "-w 4 space" --time-limit 320`.
 
 ### [ ] V3. Reference traces
 
@@ -265,7 +330,7 @@ items are only done when their screens match.
 ### [ ] V7. Aspect ratio of the window
 
 EGA 640×350 was shown on a 4:3 monitor, so each pixel was about 1.37 times
-taller than wide. The remake scales x and y equally (`main.cpp` ~1163), so
+taller than wide. The remake scales x and y equally (`main.cpp` ~177), so
 everything looks flatter than on the original. Draw the 640×350 texture into
 the largest 4:3 rectangle that fits the window (for example 640×480 at 1×).
 Make it switchable (a key and a command-line flag) for anyone who wants square
@@ -281,7 +346,7 @@ pixels. Screenshot comparisons (V5) always use the raw 640×350 texture.
 map). The ball also moves one extra pixel vertically on some ticks to give
 fractional speed (item 3).
 
-**Remake:** `UpdatePlay(float dt, …)` (`main.cpp` ~484) moves everything with
+**Remake:** `UpdatePlay(float dt, …)` (`game.cpp` ~257) moves everything with
 `dt` and px/s constants: `BALL_INIT_DY`, `paddle.speed = 300`, icons at
 80 px/s, lasers at 300 px/s, `SPEED_INCREASE_INTERVAL = 30 s`.
 
@@ -327,7 +392,7 @@ items are per-tick integers.
   gets dy flipped downward again. Porting `2bec` literally reproduces this;
   don't "fix" it without asking.
 
-**Remake:** `main.cpp` ~603–641 uses a smooth angle (`hitPos * BALL_INIT_DX * 2`),
+**Remake:** `game.cpp` ~376–414 uses a smooth angle (`hitPos * BALL_INIT_DX * 2`),
 a circle-vs-rect test, a speed floor at `BALL_INIT_DY`, and a split copy offset
 by −6 px.
 
@@ -351,7 +416,7 @@ straight up; the ball can't be saved once it is past y = 323.
 - The timer resets to 1536 at each new life (`3610`) and each level.
 
 **Remake:** `SPEED_INCREASE_*`, the speed-up icon adds +50 px/s, slow-down sets
-`BALL_INIT_DY` (`main.cpp` ~529–546, ~833–849).
+`BALL_INIT_DY` (`game.cpp` ~302–319, `game.cpp` ~606–622).
 
 **Accept:** matches the numbers above, all per tick.
 
@@ -376,7 +441,7 @@ straight up; the ball can't be saved once it is past y = 323.
 - The brick-hit logic in `2a73` is already ported as `HitBrick` (scores at
   `0xb89` match `BRICK_SCORE`).
 
-**Remake:** `main.cpp` ~643–706 uses a radius-4 circle, hits only the first
+**Remake:** `game.cpp` ~416–479 uses a radius-4 circle, hits only the first
 brick, and picks the axis by smallest overlap.
 
 **Do:** port `2693` and its helpers literally (they are integer-only). Draw
@@ -393,7 +458,7 @@ clipped):
 ..####..
 ```
 
-The remake draws `DrawCircle(x, y, 4)` (`main.cpp` ~948).
+The remake draws `DrawCircle(x, y, 4)` (`draw.cpp` ~271).
 
 **Accept:** a ball hitting the gap between two bricks breaks both, like the
 original.
@@ -404,7 +469,7 @@ original.
 off type `0x1C`. The unbreakable brick isn't damaged (`2a73` ignores `0x1C`).
 The flag lasts from one bat hit to the next.
 
-**Remake:** `main.cpp` ~659–680 still bounces off `0x1C`, and the comment says
+**Remake:** `game.cpp` ~432–453 still bounces off `0x1C`, and the comment says
 so. Remove that special case and its comment.
 
 ### [ ] 6. Icons are released on the first hit of a brick
@@ -414,7 +479,7 @@ So the icon drops on the first hit even for bricks that need several hits.
 The attribute is then set to `0xff` so it only drops once. The icon spawns at
 col `brickcol*4 + 3` (x = `brickcol*32 + 24`), y = `row*12 + 12`.
 
-**Remake:** `HitBrick` (`main.cpp` ~345) spawns the icon only when the brick is
+**Remake:** `HitBrick` (`game.cpp` ~118) spawns the icon only when the brick is
 destroyed.
 
 **Accept:** a two-hit brick with an icon drops it on the first hit.
@@ -433,8 +498,8 @@ destroyed.
 - The ball at the start of a life is **not** stuck; it moves by itself after
   the 120-tick wait. The remake already does this.
 
-**Remake:** `main.cpp` ~517–527 releases one ball per Space press and calls
-`LaunchBall`, which picks a new angle. The laser pickup at ~813 doesn't
+**Remake:** `game.cpp` ~290–300 releases one ball per Space press and calls
+`LaunchBall`, which picks a new angle. The laser pickup at `game.cpp` ~586 doesn't
 release stuck balls. `ICON_SHRINK` doesn't move stuck balls.
 
 ### [ ] 8. Laser: one shot from the centre of the bat, 4 slots
@@ -450,9 +515,9 @@ release stuck balls. `ICON_SHRINK` doesn't move stuck balls.
 - Drawing (`5e23` → `5c3a`, shape table `0xa9f`): a solid 3×8 yellow
   (colour 14) bar with its top-left at (x, y), clipped at the top of the
   playfield. The remake's 3×8 rectangle is the right size but is centred on
-  (x, y) (`main.cpp` ~942).
+  (x, y) (`draw.cpp` ~265).
 
-**Remake:** `main.cpp` ~708–760 fires two shots from the bat edges, has 10
+**Remake:** `game.cpp` ~481–533 fires two shots from the bat edges, has 10
 slots, a 0.2 s cooldown, moves at 300 px/s, and uses the wall sound for
 unbreakable bricks.
 
@@ -488,14 +553,14 @@ unbreakable bricks.
   | 11 | `263d` | Through-bricks pending |
 
 **Remake:** `MAX_POWERUPS = 16`, 80 px/s fall, 8 fps animation, catch is any
-overlap with the bat (`main.cpp` ~287, ~762–857).
+overlap with the bat (`game.h` ~61, `game.cpp` ~535–630).
 
 ### [ ] 10. Up to 16 balls
 
 **Original:** the ball table has 16 slots (`0xc16d`). A split fails quietly if
 no slot is free (`3933`).
 
-**Remake:** `MAX_BALLS = 5` (`main.cpp` ~247). Raise it to 16.
+**Remake:** `MAX_BALLS = 5` (`game.h` ~32). Raise it to 16.
 
 ### [ ] 11. Barrier and ball-loss lines (check only)
 
@@ -503,7 +568,7 @@ no slot is free (`3933`).
 negate dy, barrier off, sound `0xCBE`. y > 323 sets "below bat". y > 337 makes
 the ball inactive and balls −1.
 
-**Remake:** `main.cpp` ~579–601 mostly matches. After item 1, check the
+**Remake:** `game.cpp` ~352–374 mostly matches. After item 1, check the
 numbers and add the "below bat" flag (item 2).
 
 ---
@@ -533,7 +598,7 @@ then show their next state.
   add to the score digits **directly**, not through the pending counter.
 - The bonus is awarded from `5e83` when the letter mask equals `0x1F`.
 
-**Remake:** `AddScore` (`main.cpp` ~335) adds at once and plays no sound for
+**Remake:** `AddScore` (`game.cpp` ~108) adds at once and plays no sound for
 an extra ball. Add `pending_points`, add one point every 2 ticks, and keep the
 4000 check in the step. Add `snd_extra_life` to `sound.h`/`sound.cpp`: decode
 the pattern at `0xD3C` the same way the other sounds were decoded (see the
@@ -599,7 +664,7 @@ then NUL-terminated lines.
 high-score check (item 19), then back to the attract loop.
 
 **Remake:** a separate `STATE_GAMEOVER` screen where Space restarts the game
-straight away (`main.cpp` ~1106–1115, ~1149–1152). Replace it.
+straight away (`main.cpp` ~120–129, `main.cpp` ~163–166). Replace it.
 
 ### [ ] 17. Ending message after level 30
 
@@ -619,7 +684,7 @@ then wait for a key (`4f72`), then the high-score check:
 Decode the exact line layout from `0x8d7…0x9b1`. The strings are listed near
 `PARANOID.asm` line 255.
 
-**Remake:** `STATE_WIN` shows its own shorter text (`main.cpp` ~1153–1157).
+**Remake:** `STATE_WIN` shows its own shorter text (`main.cpp` ~167–171).
 Skipping past level 30 with the skip icon must lead here too.
 
 ### [ ] 18. Pause behaviour
@@ -628,7 +693,7 @@ Skipping past level 30 with the skip icon must lead here too.
 else resumes it.
 
 **Remake:** P or Space resumes, Esc goes to the title, and a "PAUSED" bar is
-drawn (`main.cpp` ~1100–1104, ~1144–1148). Find out whether the original
+drawn (`main.cpp` ~114–118, `main.cpp` ~158–162). Find out whether the original
 draws anything (search callers of `3cc8`). If not, remove the bar and the
 extra keys.
 
@@ -647,7 +712,7 @@ Default table (`0x5fc`, 260 bytes):
 
 The original creates the file if it is missing, and fails with "Fatal error
 creating/writing high score table file" if that isn't possible. In the remake,
-keep the same format, create it next to the data files, and keep going (with
+keep the same format, read and write it in the current working directory (decided, see Decisions), and keep going (with
 a warning) if the write fails.
 
 **Entering the table (`4882`):**
@@ -721,8 +786,8 @@ state.
     `Paranoid` (col 67, y 177).
 - Escape during a game (`3cdc` sets `0xd265`) returns here, not to the title.
 
-**Remake:** `STATE_TITLE` waits for Space/F1 (`main.cpp` ~1079–1089); Escape
-in play goes to the title (~487).
+**Remake:** `STATE_TITLE` waits for Space/F1 (`main.cpp` ~93–103); Escape
+in play goes to the title (`game.cpp` ~260).
 
 ### [ ] 22. F1 information: five pages
 
@@ -776,7 +841,7 @@ footer at y = 332. Body text is light green (colour 10), 14 px per line.
 Dump any text list with a small script that reads NUL-separated strings until
 a `0xFF` byte (offset = address − 0x100).
 
-**Remake:** one made-up page (`main.cpp` ~1129–1140) that lists arrow keys and
+**Remake:** one made-up page (`main.cpp` ~143–154) that lists arrow keys and
 says letters are worth 500. Replace it.
 
 ### [ ] 23. Opening title screen: bouncing balls and credits scroller
@@ -815,7 +880,7 @@ says letters are worth 500. Replace it.
 - After Space, the program goes to the attract loop (item 21), not straight
   into a game.
 
-**Remake:** `DrawTitleScreen` (`main.cpp` ~185) doesn't move, shows
+**Remake:** `DrawTitleScreen` (`draw.cpp` ~140) doesn't move, shows
 `"PRESS SPACE TO PLAY"` and `"F1 INFORMATION  F10 QUIT"` (neither is in the
 original title), and accepts F1.
 
@@ -841,7 +906,7 @@ CRTC start address.
 **Original:** `/Q` (or `-q`; handlers at `0x121`) sets `0xced1`. The sound
 player (`521a`) then does nothing.
 
-**Remake:** add `-q` / `/q` to the argument loop in `main()` (~1007) and make
+**Remake:** add `-q` / `/q` to the argument loop in `main()` (`main.cpp` ~34) and make
 `play_sound` return early. A key to toggle sound during play is a nice extra
 but isn't in the original.
 
@@ -852,7 +917,7 @@ starting with `E0` uses two bytes (`/K E04BE04D39` = arrow keys + Space).
 They overwrite the first three entries of `0xd41d`. Pause (P), Esc and F10
 stay fixed.
 
-**Remake:** controls are hard-coded (`main.cpp` ~505–508). Add `-k`/`/k`
+**Remake:** controls are hard-coded (`game.cpp` ~278–281). Add `-k`/`/k`
 taking the same string. Map PC set-1 scan codes to raylib `KEY_*` with a
 table, and fall back to the defaults on a bad code with the original
 "Bad command-line switch" message. Keep the arrow keys working by default as
@@ -887,7 +952,7 @@ So after the last brick breaks, the player sees it flash and the score finish
 counting before the next screen appears. The same happens after losing a ball.
 
 **Remake:** `UpdatePlay` calls `LoadLevel`/`StartLife` at once
-(`main.cpp` ~589–599, ~859–867). Add a short settle state that runs only the
+(`game.cpp` ~362–372, `game.cpp` ~632–640). Add a short settle state that runs only the
 flash and score steps (needs items 12 and 13).
 
 ### [ ] 29. What survives a lost life
@@ -910,7 +975,7 @@ These are **not** reset on a lost life; they are cleared only at level start
 - **Bonus letters** (`0xd259/0xd262/0xd263`). The remake already keeps these.
 
 **Remake:** `StartLife` clears `powerups[]` and `ResetPowerups` clears
-`barrier_active` (`main.cpp` ~396–449). Keep the falling icons and the
+`barrier_active` (`game.cpp` ~169–222). Keep the falling icons and the
 barrier flag across lives.
 
 **Accept:** with an icon falling when the last ball is lost, the same icon is
@@ -923,13 +988,13 @@ Coordinates the remake has slightly wrong, taken from the drawing tables:
 - **Barrier line** (`5be5` → `419c(x1=15, x2=463, y=335, colour)`): a 1-px
   white (colour 15) line at **y = 335** from x = 15 to 463, erased with colour
   0 when the barrier goes away. The remake draws a 2-px line at y = 328
-  (`main.cpp` ~925). (The ball's 6-px box stops at y = 328, so its bottom edge
+  (`draw.cpp` ~248). (The ball's 6-px box stops at y = 328, so its bottom edge
   touches this line.)
 - **"PARANOID" across the bottom of the playfield** (`483c`): large-font glyphs
   from `0x550` at **x = 147, y = 255**, colour 8, 24 px apart. The remake uses
-  (144, 256) (`main.cpp` ~929).
+  (144, 256) (`draw.cpp` ~252).
 - **Title-screen "PARANOID"** (`6299`): x = 229, y = 126. The remake uses
-  (224, 119) (`main.cpp` ~204).
+  (224, 119) (`draw.cpp` ~159).
 - **Side panel** (`3f08`, tables `0xaaf` and `0xae9`):
   - Raised boxes (`42f2`) at (524,22)–(610,64), (524,74)–(610,116),
     (524,126)–(610,168), (524,178)–(610,220).
@@ -937,7 +1002,7 @@ Coordinates the remake has slightly wrong, taken from the drawing tables:
     vertically.
   - Labels SCORE/LEVEL/BALLS/BONUS at x = 549, y = 25/77/129/181.
   - The remake draws 88×44 boxes at y = 20/72/124/176 and labels at x = 548,
-    y = 23/75/127/179 (`main.cpp` ~889–954).
+    y = 23/75/127/179 (`draw.cpp` ~212–277).
   - Digits: score 6 digits from x = 544, y = 37 (`5fc3`); level 2 digits from
     x = 576, y = 89 (`5fd6`); balls 2 digits from x = 576, y = 141 (`5fe9`).
     Leading zeros are drawn as the blank digit (`3d00`).
@@ -997,7 +1062,7 @@ Press a key.
 
 Regenerate it from the binary if in doubt (offset = address − 0x100).
 
-**Remake:** F10 breaks out of the main loop at once (`main.cpp` ~1073), and
+**Remake:** F10 breaks out of the main loop at once (`main.cpp` ~87), and
 nothing is saved. Add a `STATE_EXIT` that saves the high scores (item 19),
 draws this screen with an 8×14 or 8×16 text font on a black background (the
 game fonts have no box characters, so either draw the boxes as lines or bundle
@@ -1024,7 +1089,7 @@ whether to reproduce them** before changing the remake. Both the help text and
    straight into the score digits, skipping the count-up (item 13), and each
    award runs the extra-ball check (`5f79`).
 
-**Remake:** `HitBrick` (`main.cpp` ~353–365) awards 500 in order / 200 out of
+**Remake:** `HitBrick` (`game.cpp` ~126–138) awards 500 in order / 200 out of
 order, once. Options to offer the user:
 - **(a)** keep it as now (intended behaviour),
 - **(b)** match the original exactly (always 2 × 200),

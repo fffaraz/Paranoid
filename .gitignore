@@ -1,3 +1,5 @@
 .cache/
 build/
 build-*/
+tests/capture/
+__pycache__/
