@@ -46,7 +46,7 @@ the trace (see item 33). Fix it, and rename the swapped
 `LEVEL_ROWS`/`LEVEL_COLS` in `levels.h`. Build and check by eye: level 3 should
 now look like the original.
 
-### Step 1 — `tools/trace_diff.py` (TODO V4)
+### Step 1 — `tools/trace_diff.py` (TODO V4) — DONE
 
 `trace_diff.py REF OURS [--from N] [--context K]`:
 - Read both traces with `trace_format.read_records` (handles `.gz`).

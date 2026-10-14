@@ -57,4 +57,7 @@ Notes:
 ## Tools
 
 - `trace_dump.py TRACE [--from N] [--count N] [--summary]` prints records.
-- `trace_diff.py` (TODO item V4) compares two traces.
+- `trace_diff.py REF OURS [--from N] [--context K]` compares two traces,
+  skipping the ignored bytes. It prints the first differing record, each
+  differing field by name with both values, and K records of context
+  (default 5). Exit 1 on a difference or a length difference, 0 on a match.

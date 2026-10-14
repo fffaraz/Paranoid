@@ -305,6 +305,13 @@ with `tools/run_original.sh --trace`.
 **Accept:** `trace_diff` on `demo.trace` reports the first difference and
 names the field.
 
+**Progress:** `tools/trace_diff.py` is done (plus `field_span`/`field_value`
+in `trace_format.py`). Tested on `demo.trace.gz` against itself (match), a
+copy with `ball[0].x` and one brick changed (both named; page and scratch
+changes skipped), a truncated copy (length difference reported), and the two
+level-02 runs (differ only in `phase` and `pending_points`, as expected).
+Still to do: the remake's `--trace` / `--replay` and the CTest test.
+
 ### [ ] V5. Screenshot comparison
 
 - In DOSBox-X, take screenshots from the **Capture** menu (its hotkey is shown

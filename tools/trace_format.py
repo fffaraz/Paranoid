@@ -168,6 +168,35 @@ def field_at(offset):
     return f"offset {offset}"
 
 
+def field_span(offset):
+    """Return (start, size, kind) of the field holding a byte offset, so the
+    whole value can be read with field_value(). Fields without a known type
+    (bricks, flash entries, unnamed vars bytes) are one byte, kind "u"."""
+    for name, addr, length in BLOCKS:
+        start = OFFSETS[name]
+        if not start <= offset < start + length:
+            continue
+        rel = offset - start
+        if name == "vars":
+            for _, vaddr, size, kind in VARS:
+                if vaddr <= addr + rel < vaddr + size:
+                    return start + vaddr - addr, size, kind
+        tables = {"balls": (16, BALL_FIELDS), "icons": (9, ICON_FIELDS), "lasers": (16, LASER_FIELDS)}
+        if name in tables:
+            stride, fields = tables[name]
+            for _, off, size, signed in fields:
+                if off <= rel % stride < off + size:
+                    return start + rel - rel % stride + off, size, signed
+        return offset, 1, "u"
+    return offset, 1, "u"
+
+
+def field_value(rec, offset):
+    """The value of the whole field holding a byte offset."""
+    start, size, kind = field_span(offset)
+    return _value(rec, start, size, kind)
+
+
 def _sub(fields, rel):
     for name, off, size, _ in fields:
         if off <= rel < off + size:
