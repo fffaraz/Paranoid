@@ -10,7 +10,7 @@ The plan below (Steps 0–5) is **done**. Start at "After Step 5" at the end.
 
 - `TODO.md` lists every known difference from the original (items 1–33 plus
   verification items V1–V7), with addresses in the disassembly. Ticked so
-  far: 1, 4, 6, 12, 14–26, 33, V1, V2.
+  far: 1, 4, 6, 12, 14–27, 33, V1, V2.
 - The game runs on `sim.cpp`, a literal port of the original's simulation
   whose state is the original's memory. `game.cpp` is the play flow at 70
   ticks per second; `draw.cpp` draws from that memory.
@@ -186,8 +186,8 @@ confirms and what needs play traces.
 2. **Play-trace replay** (rest of V4): start from the first play record and
    feed each tick's keys (see the V4 progress note for the action-key catch),
    then tick the remaining Part A items as their traces match.
-3. Meanwhile, Parts B–E of `TODO.md` in order (items 14–26 are done;
-   next is item 27, then the rest in order, item 30 among them). For
+3. Meanwhile, Parts B–E of `TODO.md` in order (items 14–27 are done;
+   28 and 29 wait for play traces; next is item 30, then 31 and 32). For
    screens, check against the original with `tools/grab_original.sh` (see
    V5): items 15–17 and 19–24 were matched pixel for pixel that way (17 and
    19 with patched scratch copies of the COM file, see their notes). For

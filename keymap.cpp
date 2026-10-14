@@ -62,7 +62,7 @@ static bool HexByte(const char*& p, uint8_t& value)
     return true;
 }
 
-bool ParseKeySwitch(const char* text, uint8_t codes[3][2])
+const char* ParseKeyCodes(const char* text, uint8_t codes[3][2])
 {
     const char* p = text;
     while (*p == ' ')
@@ -70,9 +70,9 @@ bool ParseKeySwitch(const char* text, uint8_t codes[3][2])
     for (int i = 0; i < 3; i++) {
         codes[i][1] = 0;
         if (!HexByte(p, codes[i][0]))
-            return false;
+            return nullptr;
         if (codes[i][0] == 0xe0 && !HexByte(p, codes[i][1]))
-            return false;
+            return nullptr;
     }
-    return *p == 0;
+    return p;
 }

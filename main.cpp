@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 
 bool getRootPath(char* path, int len)
 {
@@ -51,44 +52,84 @@ int Replay(const char* ref_path, const char* out_path)
     return RunReplay(ref_path, out_path, levels);
 }
 
-// 0x2ca, printed when a switch is wrong.
+// 0x2ca, printed when a switch is wrong, with the remake's /L added.
 static int BadSwitch()
 {
     printf("Bad command-line switch.  Available switches are:\n\n"
            "    /Q - run quietly, ie disable sound effects\n"
            "    /V - skip video mode auto-detect\n"
-           "    /K llrraa - use alternative control keys\n\n"
+           "    /K llrraa - use alternative control keys\n"
+           "    /L n - start at level n (this remake only)\n\n"
            "See Paranoid.DOC for details.\n");
     return 1;
+}
+
+struct Switches {
+    bool quiet = false;
+    bool custom_keys = false;
+    uint8_t key_codes[3][2] = {};
+};
+
+// 6105: the command tail. Spaces and tabs between switches; each switch is
+// '/' or '-' and a letter, in either case; /K takes its codes (after any
+// spaces). /V (skip the video check) means nothing here. False on anything
+// else.
+static bool ParseCommandTail(const char* p, Switches& switches)
+{
+    for (;;) {
+        while (*p == ' ' || *p == '\t')
+            p++;
+        if (*p == 0)
+            return true;
+        if (*p != '/' && *p != '-')
+            return false;
+        switch (p[1] | 0x20) {
+        case 'q':
+            switches.quiet = true; // 6154
+            p += 2;
+            break;
+        case 'v':
+            p += 2; // 615a
+            break;
+        case 'k':
+            p = ParseKeyCodes(p + 2, switches.key_codes); // 6160
+            if (!p)
+                return false;
+            switches.custom_keys = true;
+            break;
+        default:
+            return false;
+        }
+    }
 }
 
 int main(int argc, char* argv[])
 {
     const char* replay_path = nullptr;
     const char* trace_path = nullptr;
-    int starting_level = 1; // remake addition: -l N
-    bool quiet = false;
-    bool custom_keys = false;
-    uint8_t key_codes[3][2] = {};
+    int starting_level = 1; // remake addition: /L n
+    // The remake's own options come out first; the rest is joined into a
+    // DOS command tail for the original's switches.
+    std::string tail;
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) {
-            int lvl = atoi(argv[++i]);
-            if (lvl >= 1 && lvl <= LEVEL_COUNT)
-                starting_level = lvl;
-        } else if ((argv[i][0] == '-' || argv[i][0] == '/') && (argv[i][1] | 0x20) == 'q' && argv[i][2] == 0) {
-            quiet = true; // 6154: no sound effects
-        } else if ((argv[i][0] == '-' || argv[i][0] == '/') && (argv[i][1] | 0x20) == 'k') {
-            // 6160: /K llrraa, the codes in the same argument or the next.
-            const char* codes = argv[i][2] ? argv[i] + 2 : (i + 1 < argc ? argv[++i] : "");
-            if (!ParseKeySwitch(codes, key_codes))
+        const char* arg = argv[i];
+        if ((arg[0] == '-' || arg[0] == '/') && (arg[1] | 0x20) == 'l' && arg[2] == 0) {
+            const int level = i + 1 < argc ? atoi(argv[++i]) : 0;
+            if (level < 1 || level > LEVEL_COUNT)
                 return BadSwitch();
-            custom_keys = true;
-        } else if (strcmp(argv[i], "--replay") == 0 && i + 1 < argc) {
+            starting_level = level;
+        } else if (strcmp(arg, "--replay") == 0 && i + 1 < argc) {
             replay_path = argv[++i];
-        } else if (strcmp(argv[i], "--trace") == 0 && i + 1 < argc) {
+        } else if (strcmp(arg, "--trace") == 0 && i + 1 < argc) {
             trace_path = argv[++i];
+        } else {
+            tail += ' ';
+            tail += arg;
         }
     }
+    Switches switches;
+    if (!ParseCommandTail(tail.c_str(), switches))
+        return BadSwitch();
     if (replay_path || trace_path) {
         // Tracing a normal game needs the game to run on sim.cpp (NEXT.md, Step 4).
         if (!replay_path || !trace_path) {
@@ -142,13 +183,13 @@ int main(int argc, char* argv[])
 
     SetTargetFPS(60);
     InitGame(levels);
-    orig.b(addr::QUIET) = quiet ? 1 : 0;
-    if (custom_keys) {
+    orig.b(addr::QUIET) = switches.quiet ? 1 : 0;
+    if (switches.custom_keys) {
         // Only the first byte is written for a one-byte code (6174).
         for (int k = 0; k < 3; k++) {
-            orig.b(uint16_t(addr::KEY_CODES + 2 * k)) = key_codes[k][0];
-            if (key_codes[k][0] == 0xe0)
-                orig.b(uint16_t(addr::KEY_CODES + 2 * k + 1)) = key_codes[k][1];
+            orig.b(uint16_t(addr::KEY_CODES + 2 * k)) = switches.key_codes[k][0];
+            if (switches.key_codes[k][0] == 0xe0)
+                orig.b(uint16_t(addr::KEY_CODES + 2 * k + 1)) = switches.key_codes[k][1];
         }
         UseKeyTable();
     }

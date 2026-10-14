@@ -10,7 +10,7 @@
 int RaylibKeyForScanCode(uint8_t code, bool extended);
 
 // 6160: "/K llrraa" gives the left, right and action keys as two hex digits
-// each, in either case; a code E0 takes the next two digits as its second
-// byte. Fills codes[i] = { first byte, second byte or 0 }; false if the text
-// isn't valid.
-bool ParseKeySwitch(const char* text, uint8_t codes[3][2]);
+// each, in either case, after any spaces; a code E0 takes the next two digits
+// as its second byte. Fills codes[i] = { first byte, second byte or 0 } and
+// returns the text after the codes, or nullptr if they aren't valid.
+const char* ParseKeyCodes(const char* text, uint8_t codes[3][2]);

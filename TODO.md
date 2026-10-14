@@ -1304,12 +1304,23 @@ parser on good and bad strings, the scan-code mapping for the defaults and
 the arrow keys, and the binary with a bad `/K` (message, exit 1) and good
 ones (runs). Not checked with a person pressing the keys.
 
-### [ ] 27. Command-line errors
+### [x] 27. Command-line errors
 
 **Original (`6105`):** an unknown switch prints the text at `0x2ca`
 ("Bad command-line switch. Available switches are: /Q … /V … /K …") and exits.
 `/V` (skip the video check) can be accepted and ignored. Keep the remake's
 `-l N` level switch, and list it in the help text.
+
+**Done:** `main.cpp` takes out the remake's own options (`-l n` / `/L n`,
+`--replay`, `--trace`), joins the rest with spaces into a DOS command tail,
+and parses it as `6105` does (`ParseCommandTail`): spaces and tabs between
+switches, each switch `/` or `-` plus a letter in either case, `/Q`, `/V`
+(ignored), `/K` with its codes (`ParseKeyCodes`, which now returns where the
+codes end so parsing goes on after them). So `/Q/V` and `/K2a3639/q` work
+and `/QV`, `/X`, a word without `/` or `-`, or bad codes print the
+original's message, with an added `/L n - start at level n (this remake
+only)` line, and exit with 1. A level outside 1..30 is an error too.
+Checked with the binary on 11 valid and 10 invalid command lines.
 
 ---
 
