@@ -252,7 +252,7 @@ level byte follows `2,5,6,9,10,7,4,3,1,8`.
 - Record a trace with
   `tools/run_original.sh --trace --type "-w 4 space" --time-limit 320`.
 
-### [ ] V3. Reference traces
+### [ ] V3. Reference traces (demo done; play traces need a person)
 
 Record and commit small reference traces under `tests/reference/` (or
 compress them; each tick is about 2 KB):
@@ -268,6 +268,14 @@ compress them; each tick is about 2 KB):
 
 Write down how each trace was made (command, levels, what happened) in
 `tests/reference/README.md`.
+
+**Status:** `demo.trace.gz` is recorded (11264 ticks, 403 KB). It covers all
+10 demo levels plus level 02 again, and the two level-02 runs match, which
+confirms the original is deterministic. `tools/trace_format.py` reads `.gz`
+directly. The README there lists what a replay must reproduce: the frame phase
+isn't reset between demo levels, and demo points pile up in `pending_points`.
+**Still to do:** the `play_*` traces. These need a person to play the original
+with `tools/run_original.sh --trace`.
 
 ### [ ] V4. Trace and replay modes in the remake
 

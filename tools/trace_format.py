@@ -5,6 +5,7 @@ Each record is the listed blocks of the original's memory, in this order.
 All multi-byte values are little-endian, as in the original.
 """
 
+import gzip
 import struct
 
 MAGIC = b"PT"
@@ -65,6 +66,11 @@ VARS = [
 
 IGNORED_VARS = {"page_offset", "page"}
 
+# 0xd37c..0xd397 hold temporaries of the collision routines (current ball,
+# corner flags, cell coordinates). They keep whatever the last call left, so
+# they aren't compared.
+SCRATCH = (0xD37C, 0xD397)
+
 BALL_FIELDS = [("x", 0, 2, True), ("y", 2, 2, True), ("dx", 4, 2, True), ("dy", 6, 2, True), ("flags", 8, 1, False), ("counter", 9, 2, False)]
 ICON_FIELDS = [("x", 0, 2, False), ("y", 2, 2, False), ("type", 4, 1, False), ("frame", 5, 1, False), ("first", 6, 1, False), ("last", 7, 1, False), ("active", 8, 1, False)]
 LASER_FIELDS = [("x", 0, 2, False), ("y", 2, 2, False), ("active", 4, 2, False)]
@@ -94,8 +100,9 @@ def _value(data, pos, size, signed):
 
 
 def read_records(path):
-    """Yield raw records (bytes) from a trace file."""
-    with open(path, "rb") as f:
+    """Yield raw records (bytes) from a trace file (plain or .gz)."""
+    opener = gzip.open if str(path).endswith(".gz") else open
+    with opener(path, "rb") as f:
         while True:
             rec = f.read(RECORD_SIZE)
             if len(rec) < RECORD_SIZE:
@@ -172,6 +179,9 @@ def ignored(offset):
     """True for bytes that differ for reasons that don't matter (header,
     display-page state)."""
     if offset < OFFSETS["balls"]:
+        return True
+    rel = offset - OFFSETS["vars"]
+    if 0 <= rel < 378 and SCRATCH[0] <= 0xD237 + rel <= SCRATCH[1]:
         return True
     name = field_at(offset)
     return name in IGNORED_VARS

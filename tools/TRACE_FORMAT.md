@@ -46,6 +46,10 @@ Notes:
   (`0xd3a8`).
 - Points scored in the demo collect in `pending_points` (`0xd399`) and are
   never added to the score, because the demo loop doesn't call `5ee1`.
+- The frame phase (`0xd23c`) isn't reset when a level or demo level starts,
+  so it carries on across loops.
+- The collision scratch bytes `0xd37c–0xd397` keep leftovers from earlier
+  calls and are ignored when comparing (`trace_format.ignored()`).
 - The key bytes come from the original's keyboard handler. For replay, the
   remake takes the left/right/action/pause state for a tick from the
   record of that tick.
