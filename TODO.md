@@ -28,11 +28,18 @@ Decided by the user:
 - **`HiScores.PAR` is read and written in the current working directory**
   (item 19), not next to the data files. Create it there with the default
   table if it is missing.
+- **The original's bugs are reproduced faithfully, each behind a "faithful
+  bugs" setting that is on by default** (item 2's bat-direction quirk and any
+  others found later). Turning it off gives the intended behaviour. Bugs
+  found so far, all switchable in `sim.cpp` (`OrigState::faithful_bugs`):
+  item 2 (bat ignores the ball's direction), item 10 (a split with no free
+  slot still counts a ball), item 32 (in-order bonus never given; bonus given
+  twice).
+- **Item 32 (bonus letters) follows that setting:** on = the original's
+  2 × 200 straight into the score; off = the remake's 500 in order / 200 out
+  of order, once.
 
 **Still open — ask the user before choosing, and don't pick a default:**
-- Reproduce the original's bugs or keep the intended behaviour: the bonus
-  letters (item 32), the bat-direction quirk (item 2), and any others found
-  later.
 - Keep, remove or make optional the remake's additions that the original
   doesn't have: arrow keys, the `-l N` level switch, the resizable window, the
   "PAUSED" banner (item 18).
@@ -362,6 +369,21 @@ pixels. Screenshot comparisons (V5) always use the raw 640×350 texture.
 
 ## Part A — simulation fidelity
 
+**Progress (Step 2 of `NEXT.md`):** `sim.h`/`sim.cpp` is the literal port of
+the simulation, items 1–11 plus the flash queue (12), the score count-up (13),
+the settle phase (28) and what a lost life resets (29). It isn't used by the
+game yet (Step 4). Its state is the original's memory as a 64 KB byte image,
+so a trace record is a straight copy. Checked: the 11 demo levels run through
+`sim` match `demo.trace.gz` in all 11264 records. A coverage run showed what
+the demo exercises: ball movement, walls, brick collision (0, 1, 2 and 4 cells
+and table `0xb5a`), normal and multi-hit bricks, icon release/fall/animation,
+flashes, level loading, the demo bat and the bat zones. Not reached by the
+demo, so checked only against the asm: speed-up (the demo never reaches 1536
+ticks), the 3-cell case and the corner tie-break (`27c2`), losing a ball and
+the below-bat flag, barrier, split, lasers, icon effects, letters, score
+count-up and extra ball, the play loop, settle, pause. Those need play traces
+(V3). Don't tick items 1–11 until Step 4 switches the game over.
+
 ### [ ] 1. Fixed 70 Hz tick with whole-pixel movement
 
 **Original:** every moving object uses whole-pixel steps per tick (see the RAM
@@ -458,8 +480,8 @@ straight up; the ball can't be saved once it is past y = 323.
   pattern (lookup tables at `0xb5a` and `0xb6a`), with a sub-cell tie-break in
   `27c2…2853`.
 - Bounces (`2b0b` reverses dx and snaps x to the 8-px grid; `2b49` reverses dy
-  and snaps y to the 6-px grid) both play sound `0xC91`. They are skipped when
-  the ball has the through flag.
+  and snaps y to the 6-px grid) both play sound `0xC91`. With the through
+  flag the bounce is skipped, but the sound still plays.
 - The brick-hit logic in `2a73` is already ported as `HitBrick` (scores at
   `0xb89` match `BRICK_SCORE`).
 
@@ -514,8 +536,8 @@ destroyed.
   clears bit 3 on every slot). A released ball keeps the dx/dy it got at the
   bat hit; it isn't relaunched.
 - Catching the laser icon (`258b`) also releases all stuck balls.
-- Shrinking the bat (`2516` → `2643`) moves stuck balls so they stay within
-  `[batx-7, batx + w*8 + 4)`.
+- Shrinking the bat (`2516` → `2643`) moves stuck balls so their x stays
+  within `[batx-7, batx + w*8 - 3]` (the new width).
 - The action key acts once per press (the handler clears `0xd42c`).
 - The ball at the start of a life is **not** stuck; it moves by itself after
   the 120-tick wait. The remake already does this.
@@ -579,8 +601,11 @@ overlap with the bat (`game.h` ~61, `game.cpp` ~535–630).
 
 ### [ ] 10. Up to 16 balls
 
-**Original:** the ball table has 16 slots (`0xc16d`). A split fails quietly if
-no slot is free (`3933`).
+**Original:** the ball table has 16 slots (`0xc16d`). A split makes no ball
+if no slot is free (`3933`), **but `3970` still adds 1 to the ball count**
+(`0xd251`). The count then can't reach 0 again, so the life never ends (only
+Escape gets out). This is a bug; `sim.cpp` reproduces it only while "faithful
+bugs" is on.
 
 **Remake:** `MAX_BALLS = 5` (`game.h` ~32). Raise it to 16.
 

@@ -58,7 +58,34 @@ now look like the original.
   records for K ticks before it.
 - Exit 1 on a mismatch or a length difference, 0 when they match.
 
-### Step 2 — the literal simulation port (Part A, items 1–11; also 12, 13, 28, 29)
+### Step 2 — the literal simulation port (Part A, items 1–11; also 12, 13, 28, 29) — DONE
+
+Done as `sim.h`/`sim.cpp` (see the Progress note above item 1 in `TODO.md`).
+Differences from the plan below: `OrigState` is the original's memory as a
+64 KB byte image with named addresses (`addr::` in `sim.h`), not a struct of
+fields, so unnamed bytes in the traced blocks (per-page letter copies, the
+letter text at `0xd25c`, the flash table) come out right by construction.
+The bugs are behind `OrigState::faithful_bugs` (the user's decision; see
+Decisions in `TODO.md`). Sounds are queued in `OrigState::sounds` as pattern
+addresses (`0xc91`, ...), to be mapped to `sound.cpp` in Step 4. The flow
+functions (`SimGameStart`, `SimLevelStart`, `SimLifeStart`, `SimPlayTick`,
+`SimPlayResult`, `SimSettleStep`, `SimLoseLife`, `SimNextLevel`) say in
+`sim.h` how to chain them.
+
+**Already checked for Step 3:** a scratch harness (not committed) matched all
+11264 demo records. What it did, so Step 3 can repeat it in the real
+`--replay`: `SimInit`; copy the reference's first `vars` block (378 bytes at
+`0xd237`) into memory once, for bytes the simulation never writes (high-score
+table at `0xd266..0xd369`, string terminators, drawing scratch at
+`0xd23f..0xd245`, `0xd3af/0xd3b0`), then set pending points to 0; per demo
+level, set phase to `(first.phase + 2) % 3` **and page to `first.page`**
+(the flash queue `5b26` depends on the page), then `SimDemoLevelStart`, 1024 ×
+(`SimDemoTick`, `ToTraceRecord`, `SimFlipPage`), then `SimDemoLevelEnd`. In
+the real replay the high-score table should come from loading
+`HiScores.PAR` into `0xd266`/`0xd2ac`/`0xd34c` rather than from the trace;
+check the other constant bytes against what the original's start-up writes.
+
+The original plan for this step:
 
 Write a new `sim.h`/`sim.cpp` (keep `game.cpp` running until step 4):
 - `struct OrigState`: the original's variables with the same meaning and

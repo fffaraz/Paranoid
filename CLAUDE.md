@@ -23,6 +23,8 @@ The game loads `BITMAPS.PAR`, `FONTS.PAR` and `LEVELS.PAR` from `.`,
 ## Source layout
 
 - `game.h` / `game.cpp`: simulation state and `UpdatePlay`.
+- `sim.h` / `sim.cpp`: the literal port of the original's simulation (TODO
+  Part A). Not used by the game yet; it replaces `game.cpp` in NEXT.md Step 4.
 - `draw.h` / `draw.cpp`: EGA palette, textures, text, `DrawTitleScreen`,
   `DrawPlay`.
 - `main.cpp`: start-up, the state machine and the simple screens.

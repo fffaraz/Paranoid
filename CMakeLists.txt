@@ -16,7 +16,7 @@ FetchContent_MakeAvailable(raylib)
 
 add_compile_options(-Werror)
 
-add_executable(paranoid main.cpp game.cpp draw.cpp bitmaps.cpp fonts.cpp levels.cpp sound.cpp)
+add_executable(paranoid main.cpp game.cpp draw.cpp sim.cpp bitmaps.cpp fonts.cpp levels.cpp sound.cpp)
 target_link_libraries(paranoid PRIVATE raylib m)
 
 if(EMSCRIPTEN)
