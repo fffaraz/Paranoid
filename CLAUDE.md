@@ -120,8 +120,8 @@ writes `HiScores.PAR`, and the script keeps that in a scratch copy.
 
 - Screen transitions (TODO item 24) are wanted.
 - The remake reads and writes `HiScores.PAR` in the current working directory.
-- The original's bugs are reproduced behind `faithful_bugs` (on by default);
-  the bonus-letter bugs (item 32) follow it.
+- The original's bugs are reproduced behind `faithful_bugs` (on by default,
+  `--fix-bugs` turns it off); the bonus-letter bugs (item 32) follow it.
 - Pause matches the original (no banner, only P resumes).
 - The arrow keys, `-l N` and the resizable window stay as remake additions.
 - The F10 exit screen uses the game's 8x14 font with the boxes drawn as lines.

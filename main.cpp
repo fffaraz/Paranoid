@@ -59,7 +59,8 @@ static int BadSwitch()
            "    /Q - run quietly, ie disable sound effects\n"
            "    /V - skip video mode auto-detect\n"
            "    /K llrraa - use alternative control keys\n"
-           "    /L n - start at level n (this remake only)\n\n"
+           "    /L n - start at level n (this remake only)\n"
+           "    --fix-bugs - fix the original's bugs (this remake only)\n\n"
            "See Paranoid.DOC for details.\n");
     return 1;
 }
@@ -108,6 +109,7 @@ int main(int argc, char* argv[])
     const char* replay_path = nullptr;
     const char* trace_path = nullptr;
     int starting_level = 1; // remake addition: /L n
+    bool fix_bugs = false; // remake addition: the original's bugs are kept unless asked
     // The remake's own options come out first; the rest is joined into a
     // DOS command tail for the original's switches.
     std::string tail;
@@ -118,6 +120,8 @@ int main(int argc, char* argv[])
             if (level < 1 || level > LEVEL_COUNT)
                 return BadSwitch();
             starting_level = level;
+        } else if (strcmp(arg, "--fix-bugs") == 0) {
+            fix_bugs = true;
         } else if (strcmp(arg, "--replay") == 0 && i + 1 < argc) {
             replay_path = argv[++i];
         } else if (strcmp(arg, "--trace") == 0 && i + 1 < argc) {
@@ -184,6 +188,7 @@ int main(int argc, char* argv[])
     SetTargetFPS(60);
     InitGame(levels);
     orig.b(addr::QUIET) = switches.quiet ? 1 : 0;
+    orig.faithful_bugs = !fix_bugs; // see TODO.md, Decisions
     if (switches.custom_keys) {
         // Only the first byte is written for a one-byte code (6174).
         for (int k = 0; k < 3; k++) {

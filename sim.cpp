@@ -1629,6 +1629,11 @@ void SimStoreName(OrigState& s, int rank)
     s.b(uint16_t(NAME_INPUT + 2 + length)) = 0;
 }
 
+void SimHitBrick(OrigState& s, int col, int row)
+{
+    fcn_2a73_hit_brick(s, uint16_t(col), uint16_t(row));
+}
+
 void ToTraceRecord(const OrigState& s, uint8_t out[TRACE_RECORD_SIZE], int loop, uint32_t tick)
 {
     // Blocks in the order of trace_format.BLOCKS.

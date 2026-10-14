@@ -169,6 +169,10 @@ void SimStartNameInput(OrigState& s);
 void SimNameInputKey(OrigState& s, uint8_t ascii);
 void SimStoreName(OrigState& s, int rank);
 
+// 2a73: hit the brick at (col, row) as a ball or a laser shot does (icon,
+// points, damage, letters, flash). For tests and tools.
+void SimHitBrick(OrigState& s, int col, int row);
+
 // One record in the layout of tools/trace_format.py. The display-page bytes
 // are written as zeros.
 void ToTraceRecord(const OrigState& s, uint8_t out[TRACE_RECORD_SIZE], int loop, uint32_t tick);

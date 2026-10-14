@@ -30,7 +30,8 @@ Decided by the user:
   table if it is missing.
 - **The original's bugs are reproduced faithfully, each behind a "faithful
   bugs" setting that is on by default** (item 2's bat-direction quirk and any
-  others found later). Turning it off gives the intended behaviour. Bugs
+  others found later). Turning it off (`--fix-bugs`) gives the intended
+  behaviour. Bugs
   found so far, all switchable in `sim.cpp` (`OrigState::faithful_bugs`):
   item 2 (bat ignores the ball's direction), item 10 (a split with no free
   slot still counts a ball), item 32 (in-order bonus never given; bonus given
@@ -1453,7 +1454,8 @@ against the original (`tools/grab_original.sh`, matched by hash on the
 whole screen): every grab of a no-key game from the first "Level 01" to
 game over, and of the 0-bricks game of item 24, is pixel-identical,
 including the score counting up; the game-over screen of item 16 differs in
-0 pixels. Not seen on the original's screen yet: collected BONUS letters.
+0 pixels. Collected BONUS letters were checked on the original's screen
+in item 32.
 
 ### [x] 31. F10 shows the registration screen before quitting
 
@@ -1523,7 +1525,7 @@ the window skips the screen but still saves. Checked by eye against the
 original's screen (captured from DOSBox-X in text mode): same layout and
 colours. Not pixel-identical by design.
 
-### [ ] 32. Bonus-letter bugs in the original (decide first)
+### [x] 32. Bonus-letter bugs in the original (decide first)
 
 The decompiled code shows two bugs in the BONUS letters. **Ask the user
 whether to reproduce them** before changing the remake. Both the help text and
@@ -1550,6 +1552,20 @@ order, once. Options to offer the user:
 - **(c)** add a "faithful bugs" setting.
 
 Whichever is chosen, add a comment citing `0x2adc` and `5e65`.
+
+**Done** (the user chose (c), see Decisions). `sim.cpp` has both behaviours
+behind `OrigState::faithful_bugs` (comments cite `2adc` and `5e65`); the
+remake's `--fix-bugs` option turns it off (it also turns off the other
+bugs: items 2 and 10), and it is listed in the bad-switch help text.
+`SimHitBrick` (`2a73`) is public for tests. Checked in the simulation: with
+the bugs, B-O-N-U-S in order or not gives 2 x 200 on two ticks (one per
+page); with `--fix-bugs`, 500 in order and 200 out of order, once. Checked
+against the original: a scratch `LEVELS.PAR` turns the first five bricks a
+no-key game breaks on level 1 (all one-hit bricks worth 10, so the ball's
+path and the points don't change) into B, O, N, U, S in that order; the
+original collects them in order and its score goes up by 400, not 500,
+with all five letters lit; every grab of that game (`tools/grab_original.sh`)
+is pixel-identical to the remake's frame over the whole screen.
 
 ### [x] 33. Levels are drawn mirrored left to right (quick fix)
 
