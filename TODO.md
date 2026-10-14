@@ -317,7 +317,21 @@ in `trace_format.py`). Tested on `demo.trace.gz` against itself (match), a
 copy with `ball[0].x` and one brick changed (both named; page and scratch
 changes skipped), a truncated copy (length difference reported), and the two
 level-02 runs (differ only in `phase` and `pending_points`, as expected).
-Still to do: the remake's `--trace` / `--replay` and the CTest test.
+
+**Progress (Step 3 of `NEXT.md`):** `./build/paranoid --replay REF --trace OUT`
+(`replay.cpp`) runs a **demo** trace through `sim.cpp` without a window and
+writes our trace; it reads plain or `.gz` traces (inflated with raylib, so at
+most 64 MB uncompressed). CTest test `demo_replay`
+(`tools/check_demo_replay.sh`) replays `demo.trace.gz` and runs
+`trace_diff.py`; it **passes** (all 11264 records), exits 77 (skipped) when the
+reference is missing, and fails with the named field on a mismatch (checked
+with a changed copy of the reference). Seeding, all from the reference: the
+`vars` bytes the simulation never writes (first record), the phase and page
+at the start of each demo level, and the key bytes of each tick.
+Still to do: `--trace` during a normal game (needs Step 4), and replay of
+play traces (needs V3 recordings: start from the first play record and feed
+the key states per tick; note that the action handler clears `0xd42c` within
+the tick, so the record shows 0 after a press).
 
 ### [ ] V5. Screenshot comparison
 

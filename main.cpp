@@ -3,6 +3,7 @@
 #include "fonts.h"
 #include "game.h"
 #include "levels.h"
+#include "replay.h"
 #include "sound.h"
 
 #include <raylib.h>
@@ -29,14 +30,48 @@ bool getRootPath(char* path, int len)
     return false;
 }
 
+// --replay REF --trace OUT: run a trace from the original through the
+// simulation without a window and write our own trace (TODO V4).
+int Replay(const char* ref_path, const char* out_path)
+{
+    SetTraceLogLevel(LOG_WARNING);
+    char root_path[128];
+    if (!getRootPath(root_path, sizeof(root_path))) {
+        printf("FAILED TO LOCATE DATA FILES IN ./ OR ./paranoid-v1.8/ OR ../paranoid-v1.8/\n");
+        return 1;
+    }
+    char path[256];
+    std::array<Level, LEVEL_COUNT> levels;
+    snprintf(path, sizeof(path), "%s/LEVELS.PAR", root_path);
+    if (load_levels(path, levels) != 0) {
+        printf("FAILED TO LOAD LEVELS (%s)\n", path);
+        return 1;
+    }
+    return RunReplay(ref_path, out_path, levels);
+}
+
 int main(int argc, char* argv[])
 {
+    const char* replay_path = nullptr;
+    const char* trace_path = nullptr;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-l") == 0 && i + 1 < argc) {
             int lvl = atoi(argv[++i]) - 1;
             if (lvl >= 0 && lvl < LEVEL_COUNT)
                 current_level = lvl;
+        } else if (strcmp(argv[i], "--replay") == 0 && i + 1 < argc) {
+            replay_path = argv[++i];
+        } else if (strcmp(argv[i], "--trace") == 0 && i + 1 < argc) {
+            trace_path = argv[++i];
         }
+    }
+    if (replay_path || trace_path) {
+        // Tracing a normal game needs the game to run on sim.cpp (NEXT.md, Step 4).
+        if (!replay_path || !trace_path) {
+            printf("--replay and --trace go together for now: --replay REF --trace OUT\n");
+            return 1;
+        }
+        return Replay(replay_path, trace_path);
     }
     const int starting_level = current_level;
 

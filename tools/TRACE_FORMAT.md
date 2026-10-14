@@ -57,6 +57,9 @@ Notes:
 ## Tools
 
 - `trace_dump.py TRACE [--from N] [--count N] [--summary]` prints records.
+- `check_demo_replay.sh PARANOID_BINARY` (the CTest test `demo_replay`) runs
+  the remake's `--replay` on `tests/reference/demo.trace.gz` and compares the
+  result with `trace_diff.py`.
 - `trace_diff.py REF OURS [--from N] [--context K]` compares two traces,
   skipping the ignored bytes. It prints the first differing record, each
   differing field by name with both values, and K records of context

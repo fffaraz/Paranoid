@@ -644,14 +644,14 @@ void fcn_2e09_balls(OrigState& s)
 void fcn_2dbc_bat_keys(OrigState& s)
 {
     uint16_t old_x = s.w(BAT_X);
-    if (s.b(KEYS + KEY_RIGHT) == 1) {
-        if (s.b(KEYS + KEY_LEFT) != 1) {
+    if (s.b(KEYS + key::RIGHT) == 1) {
+        if (s.b(KEYS + key::LEFT) != 1) {
             uint16_t x = uint16_t(s.w(BAT_X) + 3);
             if (x > s.w(BAT_MAX_X))
                 x = s.w(BAT_MAX_X);
             s.set_w(BAT_X, x);
         }
-    } else if (s.b(KEYS + KEY_LEFT) == 1) {
+    } else if (s.b(KEYS + key::LEFT) == 1) {
         uint16_t x = uint16_t(s.w(BAT_X) - 3);
         if (x <= 0x0f)
             x = 0x0f;
@@ -1060,7 +1060,7 @@ void fcn_38e0_new_ball(OrigState& s)
 // 3a7f: the action key fires or lets go of stuck balls.
 void fcn_3a7f_action(OrigState& s)
 {
-    s.b(KEYS + KEY_ACTION) = 0;
+    s.b(KEYS + key::ACTION) = 0;
     if (s.b(BAT_MODE) == 0)
         return;
     if (s.b(BAT_MODE) & 1)
@@ -1194,21 +1194,21 @@ TickStatus SimPlayTick(OrigState& s)
     // One pass of 3658, without the drawing.
     if (s.paused) {
         // 3cc8 waits until P is pressed again.
-        if (s.b(KEYS + KEY_PAUSE) != 1)
+        if (s.b(KEYS + key::PAUSE) != 1)
             return TickStatus::Paused;
-        s.b(KEYS + KEY_PAUSE) = 0;
+        s.b(KEYS + key::PAUSE) = 0;
         s.paused = false;
     } else {
         NextPhase(s);
         // 4f53: the first held key of action, Esc, F10, P (table 0x113).
-        if (s.b(KEYS + KEY_ACTION) == 1) {
+        if (s.b(KEYS + key::ACTION) == 1) {
             fcn_3a7f_action(s);
-        } else if (s.b(KEYS + KEY_ESC) == 1) {
+        } else if (s.b(KEYS + key::ESC) == 1) {
             s.b(ESCAPE) = 1; // 3cc2
-        } else if (s.b(KEYS + KEY_F10) == 1) {
+        } else if (s.b(KEYS + key::F10) == 1) {
             return TickStatus::Quit; // 3c95
-        } else if (s.b(KEYS + KEY_PAUSE) == 1) {
-            s.b(KEYS + KEY_PAUSE) = 0; // 3cc8
+        } else if (s.b(KEYS + key::PAUSE) == 1) {
+            s.b(KEYS + key::PAUSE) = 0; // 3cc8
             s.paused = true;
             return TickStatus::Paused;
         }

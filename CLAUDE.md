@@ -25,6 +25,7 @@ The game loads `BITMAPS.PAR`, `FONTS.PAR` and `LEVELS.PAR` from `.`,
 - `game.h` / `game.cpp`: simulation state and `UpdatePlay`.
 - `sim.h` / `sim.cpp`: the literal port of the original's simulation (TODO
   Part A). Not used by the game yet; it replaces `game.cpp` in NEXT.md Step 4.
+- `replay.h` / `replay.cpp`: headless `--replay` of a demo trace through `sim`.
 - `draw.h` / `draw.cpp`: EGA palette, textures, text, `DrawTitleScreen`,
   `DrawPlay`.
 - `main.cpp`: start-up, the state machine and the simple screens.
@@ -101,8 +102,11 @@ python3 -I tools/trace_dump.py tests/capture/TRACE.BIN --from 1000 --count 10
   (`*.trace.gz`) are git-ignored. If `tests/reference/demo.trace.gz` is
   missing, regenerate it with `tools/make_demo_trace.sh` (about 5 minutes,
   opens a DOSBox-X window).
-- The remake's matching `--trace` / `--replay` modes and `trace_diff.py` are
-  TODO item V4.
+- Check the simulation against the demo: `cd build && ctest` (test
+  `demo_replay`, skipped when the reference is missing). By hand:
+  `./build/paranoid --replay tests/reference/demo.trace.gz --trace OUT` runs
+  without a window, then `python3 -I tools/trace_diff.py REF OUT`. Only demo
+  traces can be replayed so far (TODO V4).
 
 Run the original from the script, not from `paranoid-v1.8/` directly. The game
 writes `HiScores.PAR`, and the script keeps that in a scratch copy.

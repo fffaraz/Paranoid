@@ -132,7 +132,14 @@ Write a new `sim.h`/`sim.cpp` (keep `game.cpp` running until step 4):
   4. `38e0` ball: slot 0, x 237, y 304, dx 2, dy −2, counter 0, flags 1.
   5. Then `0xd256 = 0`, `0xced0 = 1` (demo: icons aren't applied).
 
-### Step 3 — headless replay of the demo (rest of V4)
+### Step 3 — headless replay of the demo (rest of V4) — DONE
+
+Done: `--replay`/`--trace` (`replay.cpp`) and the CTest test `demo_replay`,
+which passes. See the Step 3 progress note under V4 in `TODO.md`. Not done
+(can't be yet): `--trace` during a normal game (Step 4) and play-trace replay
+(needs V3 recordings).
+
+The original plan for this step:
 
 - `./build/paranoid --replay tests/reference/demo.trace.gz --trace /tmp/ours.trace`
   runs without a window: no `InitWindow`, no textures, no audio, no drawing.

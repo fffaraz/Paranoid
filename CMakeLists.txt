@@ -16,7 +16,7 @@ FetchContent_MakeAvailable(raylib)
 
 add_compile_options(-Werror)
 
-add_executable(paranoid main.cpp game.cpp draw.cpp sim.cpp bitmaps.cpp fonts.cpp levels.cpp sound.cpp)
+add_executable(paranoid main.cpp game.cpp draw.cpp sim.cpp replay.cpp bitmaps.cpp fonts.cpp levels.cpp sound.cpp)
 target_link_libraries(paranoid PRIVATE raylib m)
 
 if(EMSCRIPTEN)
@@ -45,4 +45,13 @@ if(EMSCRIPTEN)
             -sSTACK_OVERFLOW_CHECK=2
         )
     endif()
+endif()
+
+# Replays the original's attract-mode demo through sim.cpp and compares the
+# traces (TODO V4). Skipped when tests/reference/demo.trace.gz is missing.
+if(NOT EMSCRIPTEN)
+    enable_testing()
+    add_test(NAME demo_replay
+        COMMAND ${CMAKE_SOURCE_DIR}/tools/check_demo_replay.sh $<TARGET_FILE:paranoid>)
+    set_tests_properties(demo_replay PROPERTIES SKIP_RETURN_CODE 77)
 endif()

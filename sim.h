@@ -62,7 +62,7 @@ constexpr uint16_t SCORE = 0xd39b; // 6 decimal digits, most significant first
 constexpr uint16_t EXTRA_BALL_AT = 0xd3a2; // 6 decimal digits
 constexpr uint16_t LEVEL_DIGITS = 0xd3a8;
 constexpr uint16_t LIVES_DIGITS = 0xd3ab;
-constexpr uint16_t KEYS = 0xd42a; // 1 while held, see KEY_*
+constexpr uint16_t KEYS = 0xd42a; // 1 while held, see key::
 }
 
 // Ball slot fields and flags.
@@ -73,7 +73,9 @@ constexpr uint16_t ICON_X = 0, ICON_Y = 2, ICON_TYPE = 4, ICON_FRAME = 5, ICON_F
 // Laser slot fields.
 constexpr uint16_t LASER_X = 0, LASER_Y = 2, LASER_ACTIVE = 4;
 // Key states, written by the caller like the original's keyboard handler (5045).
-constexpr uint16_t KEY_LEFT = 0, KEY_RIGHT = 1, KEY_ACTION = 2, KEY_ESC = 3, KEY_F10 = 4, KEY_PAUSE = 5;
+namespace key {
+constexpr uint16_t LEFT = 0, RIGHT = 1, ACTION = 2, ESC = 3, F10 = 4, PAUSE = 5;
+}
 
 constexpr int TRACE_RECORD_SIZE = 2088;
 constexpr int TRACE_LOOP_PLAY = 1;
