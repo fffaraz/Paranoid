@@ -78,14 +78,14 @@ void DrawTextEGA(const char* text, int x, int y, Color tint)
 
 void DrawTextEGAMedium(const char* text, int x, int y, Color tint)
 {
+    // 4516: lowercase letters are the small font's capitals, 6 px lower.
     for (int i = 0; text[i] != '\0'; i++) {
         char c = text[i];
         if (c >= 'a' && c <= 'z')
-            c -= 32;
-        if (c >= 0x20 && c <= 0x5F) {
+            DrawTexture(tex_font_small[c - 0x40], x, y + 6, tint);
+        else if (c >= 0x20 && c <= 0x5F)
             DrawTexture(tex_font_medium[c - 0x20], x, y, tint);
-            x += FONT_MED_W;
-        }
+        x += FONT_MED_W;
     }
 }
 
@@ -129,6 +129,108 @@ void DrawTextEGALarge(const char* text, int x, int y, Color tint)
             DrawTexture(tex_font_large[glyph - glyphs], x, y, tint);
         x += FONT_LARGE_W;
     }
+}
+
+// Lines with inclusive ends, as the original's 419c and 4274 draw them.
+static void HLine(int x1, int x2, int y, int colour)
+{
+    DrawRectangle(x1, y, x2 - x1 + 1, 1, EGA_PALETTE[colour]);
+}
+
+static void VLine(int y1, int y2, int x, int colour)
+{
+    DrawRectangle(x, y1, 1, y2 - y1 + 1, EGA_PALETTE[colour]);
+}
+
+// 42f2: raised grey box; white top and right edges, dark grey left and bottom.
+void DrawRaisedBox(int x1, int y1, int x2, int y2)
+{
+    if (y1 + 2 <= y2 - 2)
+        DrawRectangle(x1 + 2, y1 + 2, x2 - x1 - 3, y2 - y1 - 3, EGA_PALETTE[7]);
+    HLine(x1, x2, y1, 15);
+    HLine(x1 + 1, x2, y1 + 1, 15);
+    VLine(y1, y2, x2, 15);
+    VLine(y1, y2 - 1, x2 - 1, 15);
+    VLine(y1 + 1, y2, x1, 8);
+    VLine(y1 + 2, y2, x1 + 1, 8);
+    HLine(x1, x2 - 1, y2, 8);
+    HLine(x1, x2 - 2, y2 - 1, 8);
+}
+
+// 4372: sunken black box (x1, y1)-(x2, y2) with a 2-px edge outside it:
+// dark grey top and right, white bottom and left.
+void DrawSunkenBox(int x1, int y1, int x2, int y2)
+{
+    DrawRectangle(x1, y1, x2 - x1 + 1, y2 - y1 + 1, EGA_PALETTE[0]);
+    HLine(x1, x2 + 2, y1 - 1, 8);
+    HLine(x1 - 1, x2 + 2, y1 - 2, 8);
+    VLine(y1 - 2, y2, x2 + 1, 8);
+    VLine(y1 - 2, y2 + 1, x2 + 2, 8);
+    HLine(x1 - 2, x2 + 1, y2 + 1, 15);
+    HLine(x1 - 2, x2 + 2, y2 + 2, 15);
+    VLine(y1 - 2, y2, x1 - 2, 15);
+    VLine(y1 - 1, y2, x1 - 1, 15);
+}
+
+namespace {
+
+// Where 44ac puts a message of `lines` lines `width` characters wide.
+struct MessageLayout {
+    int col, text_y; // first character (8-px column) and top line
+    int x1, y1, x2, y2; // the box (4446)
+    int mid; // the box opens from here
+};
+
+MessageLayout LayoutMessage(int width, int lines, bool over_playfield)
+{
+    MessageLayout m;
+    const int h = lines * 14;
+    m.text_y = (350 - h) / 2;
+    m.col = (80 - width) / 2 - (over_playfield ? 10 : 0);
+    m.x1 = m.col * 8 - 18;
+    m.x2 = (m.col + width) * 8 + 16;
+    m.y1 = m.text_y - 12;
+    m.y2 = m.text_y + h + 13;
+    m.mid = (m.y1 + m.y2) / 2;
+    return m;
+}
+
+} // namespace
+
+int MessageOpenTicks(int lines)
+{
+    MessageLayout m = LayoutMessage(0, lines, false);
+    return m.mid - m.y1;
+}
+
+void DrawMessage(const char* const* lines, int count, int width, bool over_playfield, int step)
+{
+    // 43e4 opens the box from the middle, one step per tick: 12 steps of the
+    // raised box alone, then with the sunken inner box, until full size.
+    if (step <= 0)
+        return; // only the cleared screen yet
+    MessageLayout m = LayoutMessage(width, count, over_playfield);
+    const int open_ticks = m.mid - m.y1;
+    const int k = step < open_ticks ? step : open_ticks;
+    const int top = k == open_ticks ? m.y1 : m.mid - k;
+    const int bottom = k == open_ticks ? m.y2 : m.mid + 1 + k;
+    DrawRaisedBox(m.x1, top, m.x2, bottom);
+    if (k > 12)
+        DrawSunkenBox(m.x1 + 16, top + 12, m.x2 - 16, bottom - 12);
+    // 44ac draws the text on the next tick, in colour 15.
+    if (step <= open_ticks)
+        return;
+    for (int i = 0; i < count; i++)
+        DrawTextEGAMedium(lines[i], m.col * 8, m.text_y + i * 14, EGA_PALETTE[15]);
+}
+
+void DrawLevelIntro(int level, int step)
+{
+    // 382c: the message at 0x9b2 with the level number, over the whole screen.
+    char text[16];
+    snprintf(text, sizeof(text), "   Level %02d", level);
+    const char* lines[3] = { "", text, "" };
+    DrawMessage(lines, 3, 14, false, step);
 }
 
 void DrawTitleScreen(void)

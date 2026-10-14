@@ -173,7 +173,10 @@ int main(int argc, char* argv[])
             DrawTextCenteredSmall("PRESS SPACE TO RETURN", 300, EGA_PALETTE[8]);
             break;
         case STATE_PLAY:
-            DrawPlay();
+            if (LevelIntroStep() >= 0)
+                DrawLevelIntro(orig.b(addr::LEVEL), LevelIntroStep());
+            else
+                DrawPlay();
             // Remake addition: a banner while the game is paused.
             if (orig.paused) {
                 DrawRectangle(0, 160, 640, 30, (Color) { 0, 0, 0, 200 });

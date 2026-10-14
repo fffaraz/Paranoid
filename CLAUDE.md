@@ -103,6 +103,8 @@ python3 -I tools/trace_dump.py tests/capture/TRACE.BIN --from 1000 --count 10
   (`*.trace.gz`) are git-ignored. If `tests/reference/demo.trace.gz` is
   missing, regenerate it with `tools/make_demo_trace.sh` (about 5 minutes,
   opens a DOSBox-X window).
+- `tools/grab_original.sh OUTDIR SECONDS [KEYS]` saves the original's screen
+  as 640×350 PNGs every ~0.2 s, to compare screens pixel for pixel (TODO V5).
 - Check the simulation against the demo: `cd build && ctest` (test
   `demo_replay`, skipped when the reference is missing). By hand:
   `./build/paranoid --replay tests/reference/demo.trace.gz --trace OUT` runs

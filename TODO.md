@@ -335,6 +335,14 @@ the tick, so the record shows 0 after a press).
 
 ### [ ] V5. Screenshot comparison
 
+**Progress (item 15):** `tools/grab_original.sh OUTDIR SECONDS [KEYS]` runs
+the original and saves its screen as 640×350 PNGs every ~0.2 s without
+anyone using the Capture menu (DOSBox-X forced onto X11, grabbed with
+ImageMagick `import`; the window has a 17-px menu bar). Grabs aren't frame
+synchronised, so compare each with every candidate frame of the remake
+(`magick compare -metric AE a.png b.png null:` prints the differing pixels).
+AUTOTYPE: `-w` is the first wait, `-p` the pause between keys.
+
 - In DOSBox-X, take screenshots from the **Capture** menu (its hotkey is shown
   there). They land in the `captures` folder from V1 as 640×350 PNGs. Save
   references in `tests/reference/screens/`:
@@ -795,7 +803,7 @@ How the sounds are rendered isn't compared with the original's speaker yet.
 
 ## Part C — screens and game flow
 
-### [ ] 15. "Level xx" screen before each level
+### [x] 15. "Level xx" screen before each level
 
 **Original (`37db` → `382c`):** clear both pages and show a message
 (`44ac`). The message data at `0x9b2` is: width 14, height 3, then the text
@@ -804,16 +812,33 @@ How the sounds are rendered isn't compared with the original's speaker yet.
 play the scroll/bounce transition (item 24). Between levels there is first a
 30-tick pause (`38b7`).
 
-**How `44ac` draws messages** (used by items 15, 16, 17 and 19): there is
-**no box**. The lines are drawn as white (colour 15) 14-px text on top of
-whatever is on screen. Data format: `word width_in_chars, word line_count`,
-then NUL-terminated lines.
+**How `44ac` draws messages** (used by items 15, 16, 17 and 19). Data
+format: `word width_in_chars, word line_count`, then NUL-terminated lines.
+(An earlier version of this note said there is no box; `4446` does draw one.)
 - Position: col = `(80 - width) / 2`, or `(80 - width)/2 - 10` when called with
   `dl = 1`, which centres it over the 480-px playfield. y = `(350 - lines*14) / 2`.
 - "Level xx" uses `dl = 0` (whole screen). Game Over, the ending and
   New High Score use `dl = 1`.
+- **Box** (`4446` → `43e4`): x from `col*8 - 18` to `(col + width)*8 + 16`,
+  y from `y - 12` to `y + lines*14 + 13`. It opens from the middle row, one
+  step per tick (each step is drawn and the page flipped): 12 steps of the
+  raised box (`42f2`) alone, growing 1 px up and down, then raised box plus a
+  sunken black box inset 16 px / 12 px (`442b` → `4372`), until full size.
+- **Text** (`3e8a` → `4516`): colour 15, drawn on the next tick (after the
+  last box step). Lowercase letters are the small font's capitals 6 px lower.
+  Bytes ≥ `0x80` set the colour to `byte - 0x80`.
 
 **Remake:** none. `LoadLevel` goes straight to play. Add a `STATE_LEVEL_INTRO`.
+
+**Done:** `DrawMessage` in `draw.cpp` is `44ac` (box opening per tick, then
+the text), with `DrawRaisedBox`/`DrawSunkenBox` (`42f2`/`4372`);
+`DrawTextEGAMedium` now draws lowercase like `4516`. `game.cpp` has a
+`LevelIntro` phase before every level: 33 ticks of box, the text on tick 34,
+then up to 240 ticks or a key pressed after the text appears; the level
+starts on tick 274, like the original. Checked against the original with
+`tools/grab_original.sh` (two runs): the finished "Level 01" screen and the
+opening steps 7, 12, 22 and 28 are **pixel-identical** to the remake's
+frames. The scroll/bounce transition after it is item 24 (not done).
 
 ### [ ] 16. Game-over sequence
 
@@ -1173,7 +1198,12 @@ Coordinates the remake has slightly wrong, taken from the drawing tables:
   - Digits: score 6 digits from x = 544, y = 37 (`5fc3`); level 2 digits from
     x = 576, y = 89 (`5fd6`); balls 2 digits from x = 576, y = 141 (`5fe9`).
     Leading zeros are drawn as the blank digit (`3d00`).
-  - Read `42f2`/`4372` for the exact raised/sunken edge colours, and the
+  - The raised/sunken edges are now known (item 15, checked on the original's
+    screen): raised boxes (`42f2`) are white on the **top and right**, dark
+    grey on the left and bottom; sunken ones (`4372`) the opposite. The
+    remake's panel and title boxes have white on the top and left, so they
+    are wrong. Use `DrawRaisedBox`/`DrawSunkenBox` from `draw.cpp`.
+  - Read the
     "Paranoid is a Bit Bucket Brothers production" boxes from table `0xb03`
     and texts from `0xb15` (`3f9a`).
 - **Playfield frame** (`3f08`): raised (0,0)–(479,349), sunken (15,11)–(463,337),

@@ -21,5 +21,13 @@ void DrawTextCenteredMedium(const char* text, int y, Color tint);
 void DrawTextCenteredSmall(const char* text, int y, Color tint);
 void DrawTextEGALarge(const char* text, int x, int y, Color tint);
 
+void DrawRaisedBox(int x1, int y1, int x2, int y2);
+void DrawSunkenBox(int x1, int y1, int x2, int y2);
+// A message as 44ac draws it: a box that opens over MessageOpenTicks(lines)
+// ticks, then the text on the next tick. step counts ticks from 1.
+int MessageOpenTicks(int lines);
+void DrawMessage(const char* const* lines, int count, int width, bool over_playfield, int step);
+void DrawLevelIntro(int level, int step);
+
 void DrawTitleScreen(void);
 void DrawPlay(void);

@@ -32,3 +32,5 @@ extern bool quit_requested; // F10 during play
 void InitGame(const std::array<Level, LEVEL_COUNT>& levels);
 void StartGame(int level); // level 1..30
 void UpdatePlay(float dt);
+// While the "Level xx" message shows: ticks since it started (from 0); else -1.
+int LevelIntroStep();

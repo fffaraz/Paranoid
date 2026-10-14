@@ -1,5 +1,7 @@
 #include "game.h"
 
+#include "draw.h"
+
 #include <raylib.h>
 
 #include <algorithm>
@@ -14,11 +16,13 @@ namespace {
 constexpr int TICK_HZ = 70;
 constexpr int LIFE_WAIT_TICKS = 120; // 3610 -> 3b4c
 constexpr int NEXT_LEVEL_WAIT_TICKS = 30; // 38b7
+constexpr int LEVEL_INTRO_WAIT_TICKS = 240; // 382c -> 3b29
 
-enum class Phase { LifeWait, Play, Settle, NextLevelWait };
+enum class Phase { LevelIntro, LifeWait, Play, Settle, NextLevelWait };
 
 Phase phase = Phase::LifeWait;
 int wait_ticks = 0;
+int intro_step = 0; // ticks since the "Level xx" message started
 int settle_step = 0;
 PlayResult result = PlayResult::Playing;
 float tick_time = 0.0f;
@@ -29,6 +33,13 @@ void PlaySimSounds()
     for (uint16_t pattern : orig.sounds)
         play_pattern(sounds, pattern);
     orig.sounds.clear();
+}
+
+// 37db: the "Level xx" message, then the level.
+void StartLevel()
+{
+    phase = Phase::LevelIntro;
+    intro_step = 0;
 }
 
 void StartLife()
@@ -140,11 +151,23 @@ void Tick()
             EndOfPlay();
         break;
     }
-    case Phase::NextLevelWait:
-        if (--wait_ticks > 0)
+    case Phase::LevelIntro: {
+        // 382c: the box opens (one step per tick), the text appears on the
+        // next tick, then 3b29 flushes the keyboard and waits 240 ticks or
+        // until a key is pressed.
+        const int shown = MessageOpenTicks(3) + 1; // the tick the text appears
+        if (++intro_step <= shown)
+            break; // keys pressed until now are flushed
+        if (intro_step < shown + LEVEL_INTRO_WAIT_TICKS && !key_pressed)
             break;
         SimLevelStart(orig);
         StartLife();
+        break;
+    }
+    case Phase::NextLevelWait:
+        if (--wait_ticks > 0)
+            break;
+        StartLevel();
         break;
     }
     key_pressed = false;
@@ -161,9 +184,13 @@ void StartGame(int level)
 {
     SimGameStart(orig);
     orig.b(addr::LEVEL) = uint8_t(level);
-    SimLevelStart(orig);
-    StartLife();
+    StartLevel();
     tick_time = 0.0f;
+}
+
+int LevelIntroStep()
+{
+    return phase == Phase::LevelIntro ? intro_step : -1;
 }
 
 void UpdatePlay(float dt)
