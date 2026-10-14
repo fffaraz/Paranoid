@@ -865,7 +865,7 @@ is pixel-identical in the frame before it, at opening steps 13 and 29 and
 when finished; the whole playfield is identical except for the big
 "PARANOID" lettering, which is item 30's known offset.
 
-### [ ] 17. Ending message after level 30
+### [x] 17. Ending message after level 30
 
 **Original (`3caf`):** message `0x8d7` (42 wide, 9 lines, item 15 style) with these lines,
 then wait for a key (`4f72`), then the high-score check:
@@ -885,6 +885,21 @@ Decode the exact line layout from `0x8d7…0x9b1`. The strings are listed near
 
 **Remake:** `STATE_WIN` shows its own shorter text (`main.cpp` ~167–171).
 Skipping past level 30 with the skip icon must lead here too.
+
+**Done:** `STATE_WIN` is gone. When `SimNextLevel` passes level 30 (by
+clearing it or by the skip icon), `game.cpp` shows `Message::Ending` straight
+after the settle (no 30-tick wait, as `39d6` jumps to `3caf`): `DrawEnding`
+draws the message at `0x8d7` over the playfield (no bat, balls or icons; the
+panel still says level 30), then the game waits for a key with no time
+limit, then goes to the title (item 19's high-score check goes there). The
+message has 9 lines: the 9th runs into the next message's data and is the
+byte `0x0e`, which `4516` doesn't draw. Checked against the original: a
+scratch copy of `PARANOID.COM` with `3ac2` patched (`mov di,0x8c0` →
+`0x8d7`) shows this message instead of "Game Over" with the same `dl = 1`;
+captured with `tools/grab_original.sh`, the box is pixel-identical to the
+remake's in the frame before it, at opening steps 14, 30, 46 and 62 (of 75)
+and when finished. Checked in the remake: skip on level 30 leads to the
+ending, which still waits after 2495 ticks without a key.
 
 ### [ ] 18. Pause behaviour
 

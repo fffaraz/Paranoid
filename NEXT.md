@@ -10,7 +10,7 @@ The plan below (Steps 0–5) is **done**. Start at "After Step 5" at the end.
 
 - `TODO.md` lists every known difference from the original (items 1–33 plus
   verification items V1–V7), with addresses in the disassembly. Ticked so
-  far: 1, 4, 6, 12, 14, 15, 16, 33, V1, V2.
+  far: 1, 4, 6, 12, 14–17, 33, V1, V2.
 - The game runs on `sim.cpp`, a literal port of the original's simulation
   whose state is the original's memory. `game.cpp` is the play flow at 70
   ticks per second; `draw.cpp` draws from that memory.
@@ -186,10 +186,11 @@ confirms and what needs play traces.
 2. **Play-trace replay** (rest of V4): start from the first play record and
    feed each tick's keys (see the V4 progress note for the action-key catch),
    then tick the remaining Part A items as their traces match.
-3. Meanwhile, Parts B–E of `TODO.md` in order (items 14–16 are done;
-   next is item 17, then the rest of Part C, then item 30's layout). For
+3. Meanwhile, Parts B–E of `TODO.md` in order (items 14–17 are done;
+   next is item 18, then the rest of Part C, then item 30's layout). For
    screens, check against the original with `tools/grab_original.sh` (see
-   V5): items 15 and 16 were matched pixel for pixel that way. Before items
+   V5): items 15–17 were matched pixel for pixel that way (17 with a patched
+   scratch copy of the COM file, see its note). Before items
    that touch them, **ask** the still-open decisions in `TODO.md`: the
    remake's extras (arrow keys, `-l`, resizable window, PAUSED banner) and
    the 4:3 display default.

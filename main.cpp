@@ -141,10 +141,6 @@ int main(int argc, char* argv[])
         case STATE_PLAY:
             UpdatePlay(dt);
             break;
-        case STATE_WIN:
-            if (IsKeyPressed(KEY_SPACE))
-                state = STATE_TITLE;
-            break;
         }
 
         BeginTextureMode(game_screen);
@@ -174,6 +170,9 @@ int main(int argc, char* argv[])
             } else if (message == Message::GameOver) {
                 DrawPlay(CurrentView());
                 DrawGameOver(step);
+            } else if (message == Message::Ending) {
+                DrawPlay(CurrentView());
+                DrawEnding(step);
             } else {
                 DrawPlay(CurrentView());
             }
@@ -184,11 +183,6 @@ int main(int argc, char* argv[])
             }
             break;
         }
-        case STATE_WIN:
-            DrawTextCenteredMedium("CONGRATULATIONS", 95, EGA_PALETTE[14]);
-            DrawTextCenteredSmall("YOU HAVE COMPLETED ALL THIRTY LEVELS", 145, EGA_PALETTE[15]);
-            DrawTextCenteredSmall("PRESS SPACEBAR TO CONTINUE", 235, EGA_PALETTE[7]);
-            break;
         }
         EndTextureMode();
 

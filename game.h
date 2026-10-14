@@ -12,13 +12,13 @@
 
 enum GameState { STATE_TITLE,
     STATE_INFO,
-    STATE_PLAY,
-    STATE_WIN };
+    STATE_PLAY };
 
 // A message shown in the play state (44ac).
 enum class Message { None,
     LevelIntro, // "Level xx" before each level (37db)
-    GameOver }; // over the playfield after the last life (3ab5)
+    GameOver, // over the playfield after the last life (3ab5)
+    Ending }; // over the playfield after level 30 (3caf)
 
 constexpr int PLAY_ROWS = 19;
 constexpr int PLAY_COLS = 14;

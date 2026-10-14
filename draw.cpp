@@ -240,6 +240,25 @@ void DrawGameOver(int step)
     DrawMessage(lines, 3, 16, true, step);
 }
 
+void DrawEnding(int step)
+{
+    // 3caf: the message at 0x8d7, over the playfield. Its ninth line runs
+    // into the next message's data and is the byte 0x0e, which 4516 doesn't
+    // draw.
+    const char* lines[ENDING_LINES] = {
+        "",
+        "   Congratulations - you have completed",
+        "   all thirty levels.  Register now for",
+        "   another thirty plus a level designer",
+        "   to create your own.     See the file",
+        "   Paranoid.DOC for more details.",
+        "",
+        "   Press a key ...",
+        "",
+    };
+    DrawMessage(lines, ENDING_LINES, 42, true, step);
+}
+
 void DrawTitleScreen(void)
 {
     DrawRectangle(0, 0, 640, 280, EGA_PALETTE[7]);

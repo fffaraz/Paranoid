@@ -29,6 +29,8 @@ int MessageOpenTicks(int lines);
 void DrawMessage(const char* const* lines, int count, int width, bool over_playfield, int step);
 void DrawLevelIntro(int level, int step);
 void DrawGameOver(int step);
+constexpr int ENDING_LINES = 9;
+void DrawEnding(int step);
 
 void DrawTitleScreen(void);
 struct PlayView;

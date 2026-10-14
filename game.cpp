@@ -51,15 +51,19 @@ void StartLevel()
     ShowMessage(Message::LevelIntro, 0);
 }
 
-// 44ac + 3b29: the box opens one step per tick, the text appears on the next
-// tick, then the keyboard is flushed and the game waits 240 ticks or for a
-// key. Both messages that wait like this have 3 lines.
+// 44ac: the box opens one step per tick and the text appears on the next
+// tick. Then the keyboard is flushed and the game waits for a key: at most
+// 240 ticks after "Level xx" and "Game Over" (3b29), without a limit after the
+// ending (4f72).
 bool MessageFinished()
 {
-    const int shown = message_lead + MessageOpenTicks(3) + 1; // the tick the text appears
+    const int lines = message == Message::Ending ? ENDING_LINES : 3;
+    const int shown = message_lead + MessageOpenTicks(lines) + 1; // the tick the text appears
     if (++message_step <= shown)
         return false; // keys pressed until now are flushed
-    return message_step >= shown + MESSAGE_WAIT_TICKS || key_pressed;
+    if (key_pressed)
+        return true;
+    return message != Message::Ending && message_step >= shown + MESSAGE_WAIT_TICKS;
 }
 
 void StartLife()
@@ -113,7 +117,7 @@ void EndOfPlay()
         break;
     case PlayResult::LevelCleared:
         if (!SimNextLevel(orig)) {
-            state = STATE_WIN;
+            ShowMessage(Message::Ending, 0); // 3caf, straight after the settle
             break;
         }
         phase = Phase::NextLevelWait;
@@ -226,6 +230,8 @@ PlayView CurrentView()
         if (message == Message::GameOver) {
             view.movers = false;
             view.icons = message_step < message_lead; // 3ab5 erases them
+        } else if (message == Message::Ending) {
+            view.movers = view.icons = false; // as the settle left them
         }
         break;
     default:
