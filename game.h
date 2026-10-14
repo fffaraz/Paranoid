@@ -13,7 +13,8 @@
 enum GameState { STATE_TITLE,
     STATE_INFO,
     STATE_PLAY,
-    STATE_HISCORES }; // the attract loop's high-score screen (4ba7)
+    STATE_HISCORES, // the attract loop's high-score screen (4ba7)
+    STATE_DEMO }; // the attract loop's demo level (3b69)
 
 // A message shown in the play state (44ac).
 enum class Message { None,
@@ -60,3 +61,8 @@ int NameEntryRank();
 void StartHighScoreScreen();
 int UpdateHighScoreScreen(float dt);
 bool HighScoreBallsShown();
+
+// A demo level of the attract loop (3b69). UpdateDemo returns like
+// UpdateHighScoreScreen.
+void StartDemoLevel();
+int UpdateDemo(float dt);

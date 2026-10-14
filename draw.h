@@ -42,3 +42,5 @@ void DrawHighScoreScreen(bool balls);
 void DrawTitleScreen(void);
 struct PlayView;
 void DrawPlay(const PlayView& view);
+// The attract mode's demo screen (3fde) with the playfield.
+void DrawDemo();

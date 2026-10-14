@@ -48,12 +48,53 @@ int message_lead = 0; // ticks before the message's box starts
 int hiscore_rank = 0; // the row being named
 int hiscore_ticks = 0; // ticks of the high-score screen: 1 shows the table, then 1 per ball move
 int hiscore_key = 0; // the key that ends the high-score screen
+int demo_ticks = 0;
+int demo_key = 0; // the key that ends the demo level
 
 constexpr int HISCORE_BALL_TICKS = 1024; // 4abd
+constexpr int DEMO_LEVEL_TICKS = 1024; // 3bbd
 int settle_step = 0;
 PlayResult result = PlayResult::Playing;
 float tick_time = 0.0f;
 bool key_pressed = false; // any key since the last tick, for the waits
+
+// The next key that would reach the BIOS keyboard buffer, which the original
+// reads when it waits for "a key": Shift, Ctrl, Alt and the locks don't.
+int BiosKey()
+{
+    for (int key = GetKeyPressed(); key != 0; key = GetKeyPressed()) {
+        switch (key) {
+        case KEY_LEFT_SHIFT:
+        case KEY_RIGHT_SHIFT:
+        case KEY_LEFT_CONTROL:
+        case KEY_RIGHT_CONTROL:
+        case KEY_LEFT_ALT:
+        case KEY_RIGHT_ALT:
+        case KEY_LEFT_SUPER:
+        case KEY_RIGHT_SUPER:
+        case KEY_CAPS_LOCK:
+        case KEY_NUM_LOCK:
+        case KEY_SCROLL_LOCK:
+            continue;
+        default:
+            return key;
+        }
+    }
+    return 0;
+}
+
+// How many whole 70 Hz ticks to run for this frame; after a long stall, don't
+// try to catch up.
+int TicksDue(float dt)
+{
+    tick_time += dt;
+    if (tick_time > 8.0f / TICK_HZ)
+        tick_time = 8.0f / TICK_HZ;
+    int ticks = 0;
+    for (; tick_time >= 1.0f / TICK_HZ; tick_time -= 1.0f / TICK_HZ)
+        ticks++;
+    return ticks;
+}
 
 void PlaySimSounds()
 {
@@ -326,18 +367,12 @@ void UpdatePlay(float dt)
         }
         return;
     }
-    if (GetKeyPressed() != 0)
+    if (BiosKey() != 0)
         key_pressed = true;
     PressKeys();
 
-    // Whole ticks at 70 Hz; after a long stall, don't try to catch up.
-    tick_time += dt;
-    if (tick_time > 8.0f / TICK_HZ)
-        tick_time = 8.0f / TICK_HZ;
-    while (tick_time >= 1.0f / TICK_HZ && state == STATE_PLAY && !quit_requested) {
-        tick_time -= 1.0f / TICK_HZ;
+    for (int ticks = TicksDue(dt); ticks > 0 && state == STATE_PLAY && !quit_requested; ticks--)
         Tick();
-    }
 }
 
 void StartHighScoreScreen()
@@ -352,13 +387,9 @@ void StartHighScoreScreen()
 
 int UpdateHighScoreScreen(float dt)
 {
-    if (int key = GetKeyPressed())
+    if (int key = BiosKey())
         hiscore_key = key;
-    tick_time += dt;
-    if (tick_time > 8.0f / TICK_HZ)
-        tick_time = 8.0f / TICK_HZ;
-    while (tick_time >= 1.0f / TICK_HZ) {
-        tick_time -= 1.0f / TICK_HZ;
+    for (int ticks = TicksDue(dt); ticks > 0; ticks--) {
         if (hiscore_ticks++ == 0)
             continue; // the table alone
         SimHighScoreBallsTick(orig);
@@ -375,4 +406,32 @@ int UpdateHighScoreScreen(float dt)
 bool HighScoreBallsShown()
 {
     return hiscore_ticks > 1;
+}
+
+void StartDemoLevel()
+{
+    // 3c3c flushes the keyboard; 3b69 loads the next level of the demo list
+    // and 3b94 starts it.
+    SimDemoLevelStart(orig);
+    demo_ticks = 0;
+    demo_key = 0;
+    tick_time = 0.0f;
+}
+
+int UpdateDemo(float dt)
+{
+    if (int key = BiosKey())
+        demo_key = key;
+    for (int ticks = TicksDue(dt); ticks > 0; ticks--) {
+        SimDemoTick(orig);
+        orig.sounds.clear(); // the demo doesn't run the sound player (521a)
+        SimFlipPage(orig);
+        // 3c02: a key ends the level after a tick; so do 1024 ticks. Then 37c5
+        // clears the flash queue.
+        if (demo_key || ++demo_ticks >= DEMO_LEVEL_TICKS) {
+            SimDemoLevelEnd(orig);
+            return demo_key ? demo_key : -1;
+        }
+    }
+    return 0;
 }

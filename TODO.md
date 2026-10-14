@@ -1033,7 +1033,7 @@ level, with the phase the demo trace ends on): all 37 grabs of the screen
 are pixel-identical to the remake's frames for ticks 0, 15, 31, ... 567,
 which include 115 wall bounces and 114 box bounces.
 
-### [ ] 21. Demo (attract) mode and the main menu loop
+### [x] 21. Demo (attract) mode and the main menu loop
 
 **Original:**
 - `3c38` loops between a demo level and the high-score screen until a key is
@@ -1058,6 +1058,29 @@ which include 115 wall bounces and 114 box bounces.
 
 **Remake:** `STATE_TITLE` waits for Space/F1 (`main.cpp` ~93–103); Escape
 in play goes to the title (`game.cpp` ~260).
+
+**Done:** `STATE_DEMO` (`StartDemoLevel`/`UpdateDemo` in `game.cpp`: the
+next level of the list, 1024 ticks or a key, the demo's sound requests
+dropped as the demo never runs `521a`) alternates with `STATE_HISCORES`.
+`main.cpp` dispatches the key that ends either one (`3c55`/`3c75`): Space
+starts a game, F1 the information, F10 quits, any other key or the end goes
+on with the loop. Space on the title starts the loop with a demo level (as
+`51d6` does); after F1 it starts again with a demo level, after a game or
+Escape with the high-score screen (table `0xc49` = 0, 0, 1). "Any key" now
+means a key that reaches the BIOS buffer (`BiosKey`), so Shift, Ctrl and
+Alt don't end the demo or the waits. `DrawDemo` draws `3fde`; it shares new
+exact helpers with `DrawPlay`: the frame (`3f08`/`3fde`), "PARANOID" across
+the playfield (`483c`) and the production boxes (`3f9a`), with
+`DrawCodedText` for `3e8a`'s colour bytes. Checked against the original
+(`tools/grab_original.sh` after Space on the title, frames matched by hash):
+all 65 grabs of demo level 02 are pixel-identical to the remake's frames
+(up to tick 1010); the play screen now matches everywhere except the score
+panel boxes and digits, (524,20)–(611,220), which are item 30. The attract
+order in the remake is 02, 05, 06, 09, 10, 07, 04, 03, 01, 08, 02, ... at
+1024 ticks each. **Not ported:** the demo leaves its last sound request
+pending (`52df` sets `0xcf0f`; `39f3` resets only the priority `0xcf0e`),
+so the original probably plays one stale demo sound on the first play tick
+of a game.
 
 ### [ ] 22. F1 information: five pages
 
@@ -1275,6 +1298,10 @@ Coordinates the remake has slightly wrong, taken from the drawing tables:
   (144, 256) (`draw.cpp` ~252).
 - **Title-screen "PARANOID"** (`6299`): x = 229, y = 126. The remake uses
   (224, 119) (`draw.cpp` ~159).
+- **Done by item 21:** the playfield frame, the big "PARANOID" (147, 255)
+  and the production boxes (`3f9a`) are exact now (`DrawFrame`,
+  `DrawProductionBoxes` in `draw.cpp`). Left: the score panel below and the
+  title screen.
 - **Side panel** (`3f08`, tables `0xaaf` and `0xae9`):
   - Raised boxes (`42f2`) at (524,22)–(610,64), (524,74)–(610,116),
     (524,126)–(610,168), (524,178)–(610,220).

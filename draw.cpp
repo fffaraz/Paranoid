@@ -399,37 +399,60 @@ void LoadGameTextures(const BitMaps& bitmaps, const Fonts& fonts)
         tex_font_large[i] = CreateTextureFromBitmask(&fonts.font_large[i][0][0], FONT_LARGE_W, FONT_LARGE_H, WHITE);
 }
 
-void DrawPlay(const PlayView& view)
+// 3e8a: text in the medium font from 8-px column `col`. A byte >= 0x80 sets
+// the colour to byte - 0x80; the colour carries over to the next string.
+static void DrawCodedText(const char* text, int col, int y, int& colour)
 {
-    // The original playfield occupies the left 480 pixels, with a separate
-    // gray control panel on the right (rather than a centered playfield).
-    DrawRectangle(0, 0, 480, 350, EGA_PALETTE[7]);
-    DrawRectangle(PLAY_LEFT, BRICK_TOP, PLAY_COLS * BRICK_W, 326, BLACK);
-    DrawRectangle(0, 0, 480, 1, WHITE);
-    DrawRectangle(0, 0, 1, 350, WHITE);
-    DrawRectangle(479, 0, 1, 350, EGA_PALETTE[8]);
-    DrawRectangle(0, 349, 480, 1, EGA_PALETTE[8]);
-    DrawRectangle(15, 11, 450, 1, EGA_PALETTE[8]);
-    DrawRectangle(15, 11, 1, 328, EGA_PALETTE[8]);
-    DrawRectangle(15, 338, 450, 1, WHITE);
-    DrawRectangle(464, 11, 1, 328, WHITE);
-
-    DrawRectangle(496, 0, 144, 350, EGA_PALETTE[7]);
-    DrawRectangle(496, 0, 1, 350, WHITE);
-    DrawRectangle(639, 0, 1, 350, EGA_PALETTE[8]);
-    for (int y = 20; y <= 176; y += 52) {
-        DrawRectangle(524, y, 88, 44, EGA_PALETTE[7]);
-        DrawRectangle(524, y, 88, 1, WHITE);
-        DrawRectangle(524, y, 1, 44, WHITE);
-        DrawRectangle(611, y, 1, 44, EGA_PALETTE[8]);
-        DrawRectangle(524, y + 43, 88, 1, EGA_PALETTE[8]);
-        DrawRectangle(540, y + 14, 56, 18, BLACK);
-        DrawRectangle(539, y + 13, 58, 1, WHITE);
-        DrawRectangle(539, y + 13, 1, 20, WHITE);
+    char run[64];
+    int n = 0, run_col = col;
+    for (const char* p = text;; p++) {
+        const uint8_t c = uint8_t(*p);
+        if (c == 0 || c >= 0x80) {
+            run[n] = 0;
+            DrawTextEGAMedium(run, run_col * 8, y, EGA_PALETTE[colour & 15]);
+            if (c == 0)
+                return;
+            colour = c - 0x80;
+            run_col += n;
+            n = 0;
+            continue;
+        }
+        if (n < 63)
+            run[n++] = char(c);
     }
+}
 
-    DrawTextEGALarge("PARANOID", 144, 256, EGA_PALETTE[8]);
+// The parts of the play screen (3f08) and the demo screen (3fde) that are
+// the same: the raised frame round the playfield, the black playfield, the
+// raised panel, and "PARANOID" across the playfield (483c: glyphs from
+// 0x550 at x = 147, y = 255, 24 px apart, colour 8).
+static void DrawFrame()
+{
+    DrawRaisedBox(0, 0, 479, 349);
+    DrawSunkenBox(15, 11, 463, 337);
+    DrawRaisedBox(496, 0, 639, 349);
+    static const uint8_t paranoid[8] = { 11, 4, 10, 4, 8, 6, 12, 13 };
+    for (int i = 0; i < 8; i++)
+        DrawTexture(tex_font_large[paranoid[i]], 147 + 24 * i, 255, EGA_PALETTE[8]);
+}
 
+// 3f9a: "Paranoid is a Bit Bucket Brothers production" (boxes 0xb03, texts
+// 0xb15).
+static void DrawProductionBoxes()
+{
+    DrawRaisedBox(527, 238, 607, 260);
+    DrawRaisedBox(519, 286, 615, 322);
+    int colour = 0;
+    DrawCodedText("\x81Paranoid", 67, 242, colour);
+    DrawCodedText("Bit Bucket", 66, 290, colour);
+    DrawCodedText("Brothers", 67, 304, colour);
+    DrawCodedText("\x80is a", 69, 264, colour);
+    DrawCodedText("production", 66, 326, colour);
+}
+
+// Bricks, flashes, icons, the barrier, the bat, laser shots and balls.
+static void DrawPlayfield(const PlayView& view)
+{
     // Bricks (5a1f): column c at x = 16 + 32c, row r at y = 12 + 12r.
     for (int c = 0; c < PLAY_COLS; c++) {
         for (int r = 0; r < PLAY_ROWS; r++) {
@@ -489,7 +512,22 @@ void DrawPlay(const PlayView& view)
 
         DrawBalls();
     }
+}
 
+// The score panel of the play screen. Not yet laid out like the original
+// (TODO item 30).
+static void DrawScorePanel()
+{
+    for (int y = 20; y <= 176; y += 52) {
+        DrawRectangle(524, y, 88, 44, EGA_PALETTE[7]);
+        DrawRectangle(524, y, 88, 1, WHITE);
+        DrawRectangle(524, y, 1, 44, WHITE);
+        DrawRectangle(611, y, 1, 44, EGA_PALETTE[8]);
+        DrawRectangle(524, y + 43, 88, 1, EGA_PALETTE[8]);
+        DrawRectangle(540, y + 14, 56, 18, BLACK);
+        DrawRectangle(539, y + 13, 58, 1, WHITE);
+        DrawRectangle(539, y + 13, 1, 20, WHITE);
+    }
     DrawTextEGA("SCORE", 548, 23, BLACK);
     DrawTextEGA("LEVEL", 548, 75, BLACK);
     DrawTextEGA("BALLS", 548, 127, BLACK);
@@ -517,19 +555,32 @@ void DrawPlay(const PlayView& view)
             (orig.b(addr::LETTERS) & (1 << b)) ? EGA_PALETTE[14] : WHITE);
     }
 
-    DrawRectangle(526, 238, 86, 20, EGA_PALETTE[7]);
-    DrawRectangle(526, 238, 86, 1, WHITE);
-    DrawRectangle(526, 238, 1, 20, WHITE);
-    DrawRectangle(611, 238, 1, 20, EGA_PALETTE[8]);
-    DrawRectangle(526, 257, 86, 1, EGA_PALETTE[8]);
-    DrawTextEGAMedium("PARANOID", 537, 241, EGA_PALETTE[1]);
-    DrawTextEGAMedium("IS A", 552, 264, BLACK);
-    DrawRectangle(518, 284, 98, 38, EGA_PALETTE[7]);
-    DrawRectangle(518, 284, 98, 1, WHITE);
-    DrawRectangle(518, 284, 1, 38, WHITE);
-    DrawRectangle(615, 284, 1, 38, EGA_PALETTE[8]);
-    DrawRectangle(518, 321, 98, 1, EGA_PALETTE[8]);
-    DrawTextEGAMedium("BIT BUCKET", 527, 287, EGA_PALETTE[1]);
-    DrawTextEGAMedium("BROTHERS", 531, 301, EGA_PALETTE[1]);
-    DrawTextEGAMedium("PRODUCTION", 526, 329, BLACK);
+}
+
+void DrawPlay(const PlayView& view)
+{
+    DrawFrame();
+    DrawScorePanel();
+    DrawProductionBoxes();
+    DrawPlayfield(view);
+}
+
+void DrawDemo()
+{
+    // 3fde: the frame, three boxes (0x9c4) with texts (0x9de, colour 0 to
+    // start), the production boxes, then the playfield.
+    DrawFrame();
+    DrawRaisedBox(506, 24, 629, 60);
+    DrawRaisedBox(506, 80, 629, 116);
+    DrawRaisedBox(506, 136, 629, 196);
+    int colour = 0;
+    DrawCodedText("Press \x84" "F1\x80 for", 65, 28, colour);
+    DrawCodedText("information", 65, 42, colour);
+    DrawCodedText("Press \x84" "F10\x80 to", 65, 84, colour);
+    DrawCodedText("quit to dos", 65, 98, colour);
+    DrawCodedText("Press \x84space\x80", 65, 140, colour);
+    DrawCodedText("to play", 65, 156, colour);
+    DrawCodedText("\x81Paranoid\x80", 67, 177, colour);
+    DrawProductionBoxes();
+    DrawPlayfield(PlayView {});
 }

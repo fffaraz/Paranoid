@@ -126,36 +126,52 @@ int main(int argc, char* argv[])
 
         const float dt = GetFrameTime();
 
-        switch (state) {
-        case STATE_TITLE:
-            if (IsKeyPressed(KEY_SPACE)) {
-                StartGame(starting_level);
-                state = STATE_PLAY;
-            } else if (IsKeyPressed(KEY_F1))
-                state = STATE_INFO;
-            break;
-        case STATE_INFO:
-            if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_F1))
-                state = STATE_TITLE;
-            break;
-        case STATE_PLAY:
-            UpdatePlay(dt);
-            break;
-        case STATE_HISCORES: {
-            // TODO item 21: the attract loop's dispatcher (3c55/3c75) and its
-            // demo levels. Until then a key other than Space or F1, or the end of
-            // the screen, goes to the title.
-            int key = UpdateHighScoreScreen(dt);
+        // The attract loop (3c38) alternates demo levels and the high-score
+        // screen. The key that ends one goes to the dispatcher (3c55/3c75):
+        // Space starts a game, F1 shows the information, F10 quits; another
+        // key, or the end of the screen, goes on with the loop.
+        auto dispatch = [&](int key, GameState next) {
             if (key == KEY_SPACE) {
                 StartGame(starting_level);
                 state = STATE_PLAY;
             } else if (key == KEY_F1) {
                 state = STATE_INFO;
+            } else if (key == KEY_F10) {
+                quit_requested = true;
             } else if (key != 0) {
-                state = STATE_TITLE;
+                state = next;
+                if (next == STATE_DEMO)
+                    StartDemoLevel();
+                else
+                    StartHighScoreScreen();
+            }
+        };
+        switch (state) {
+        case STATE_TITLE:
+            // TODO item 23: only Space leaves the title.
+            if (IsKeyPressed(KEY_SPACE)) {
+                StartDemoLevel(); // 51d6: the attract loop, from a demo level
+                state = STATE_DEMO;
+            } else if (IsKeyPressed(KEY_F1))
+                state = STATE_INFO;
+            break;
+        case STATE_INFO:
+            // TODO item 22: the original's five pages. After them the
+            // attract loop starts again with a demo level (0xc49).
+            if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_F1)) {
+                StartDemoLevel();
+                state = STATE_DEMO;
             }
             break;
-        }
+        case STATE_PLAY:
+            UpdatePlay(dt);
+            break;
+        case STATE_DEMO:
+            dispatch(UpdateDemo(dt), STATE_HISCORES);
+            break;
+        case STATE_HISCORES:
+            dispatch(UpdateHighScoreScreen(dt), STATE_DEMO);
+            break;
         }
 
         BeginTextureMode(game_screen);
@@ -176,6 +192,9 @@ int main(int argc, char* argv[])
             DrawTextEGA("F10        - QUIT", 180, 190, EGA_PALETTE[7]);
             DrawTextCenteredSmall("COLLECT B-O-N-U-S LETTERS IN ORDER FOR 500 POINTS", 240, EGA_PALETTE[10]);
             DrawTextCenteredSmall("PRESS SPACE TO RETURN", 300, EGA_PALETTE[8]);
+            break;
+        case STATE_DEMO:
+            DrawDemo();
             break;
         case STATE_HISCORES:
             DrawHighScoreScreen(HighScoreBallsShown());
