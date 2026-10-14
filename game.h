@@ -62,6 +62,11 @@ void StartHighScoreScreen();
 int UpdateHighScoreScreen(float dt);
 bool HighScoreBallsShown();
 
+// The title screen (6367). UpdateTitle returns true when Space is pressed.
+void StartTitle();
+bool UpdateTitle(float dt);
+int TitleTicks();
+
 // The five F1 information pages (4bb4). UpdateInfo returns true after the
 // last one.
 void StartInfo();

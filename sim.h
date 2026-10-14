@@ -26,7 +26,10 @@ constexpr uint16_t ICONS = 0xc2cd; // 5 slots x 9 bytes, see ICON_*
 constexpr uint16_t LASERS = 0xc30e; // 4 slots x 16 bytes, see LASER_*
 constexpr uint16_t DEMO_LEVEL_PTR = 0xcece; // next entry of the demo level list
 constexpr uint16_t DEMO = 0xced0;
-constexpr uint16_t INFO_ICONS = 0xced3; // the F1 pages' 6 icons x 7 bytes, see INFO_ICON_*
+constexpr uint16_t INFO_ICONS = 0xced3;
+constexpr uint16_t SCROLL_POS = 0xcf0b; // title scroller: next character, 0x3a5..0x522
+constexpr uint16_t SCROLL_SHIFT = 0xcf0d; // and its pixel offset, 0, 2, 4, 6
+constexpr uint16_t SCROLL_TEXT = 0x3a5, SCROLL_TEXT_END = 0x523; // in the COM file // the F1 pages' 6 icons x 7 bytes, see INFO_ICON_*
 constexpr uint16_t FLASH = 0xcf17; // 266 x (col, row, timer)
 constexpr uint16_t FLASH_COUNT = 0xd235;
 constexpr uint16_t FLASH_MASK = 0xd236;
@@ -143,6 +146,11 @@ bool SimNextLevel(OrigState& s); // false after level 30
 // key.
 void SimHighScoreBallsStart(OrigState& s);
 void SimHighScoreBallsTick(OrigState& s);
+
+// The title screen (64d9): 6 bouncing balls and the credits scroller. Then
+// one SimTitleTick and SimFlipPage per tick until Space.
+void SimTitleStart(OrigState& s);
+void SimTitleTick(OrigState& s);
 
 // The animated icons of the F1 pages 4 and 5 (4dcb / 4e13): icons 0-5 or
 // 6-11 at their places on the page. Then one SimInfoIconsTick per tick (4e9b).

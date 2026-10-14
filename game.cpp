@@ -49,6 +49,7 @@ int hiscore_rank = 0; // the row being named
 int hiscore_ticks = 0; // ticks of the high-score screen: 1 shows the table, then 1 per ball move
 int hiscore_key = 0; // the key that ends the high-score screen
 int info_page = 0; // F1 page 0..4
+int title_ticks = 0;
 int demo_ticks = 0;
 int demo_key = 0; // the key that ends the demo level
 
@@ -468,4 +469,30 @@ bool UpdateInfo(float dt)
 int InfoPage()
 {
     return info_page;
+}
+
+void StartTitle()
+{
+    // 6367: 624e draws the screen, then 64d9 starts the balls and the
+    // scroller.
+    SimTitleStart(orig);
+    title_ticks = 0;
+    tick_time = 0.0f;
+}
+
+bool UpdateTitle(float dt)
+{
+    // 64f4: after each tick a key is read; only Space leaves.
+    const int key = BiosKey();
+    for (int ticks = TicksDue(dt); ticks > 0; ticks--) {
+        SimTitleTick(orig);
+        SimFlipPage(orig);
+        title_ticks++;
+    }
+    return key == KEY_SPACE;
+}
+
+int TitleTicks()
+{
+    return title_ticks;
 }

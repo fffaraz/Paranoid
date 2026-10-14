@@ -42,7 +42,8 @@ void DrawHighScoreScreen(bool balls);
 // F1 information page 0..4 (4bb4).
 void DrawInfoPage(int page);
 
-void DrawTitleScreen(void);
+// The title screen (6367) after `ticks` ticks of its loop.
+void DrawTitleScreen(int ticks);
 struct PlayView;
 void DrawPlay(const PlayView& view);
 // The attract mode's demo screen (3fde) with the playfield.

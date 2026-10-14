@@ -118,6 +118,7 @@ int main(int argc, char* argv[])
 
     SetTargetFPS(60);
     InitGame(levels);
+    StartTitle();
 
     while (!WindowShouldClose()) {
         // F10 quits from the attract loop, during play and after a key in the
@@ -150,13 +151,9 @@ int main(int argc, char* argv[])
         };
         switch (state) {
         case STATE_TITLE:
-            // TODO item 23: only Space leaves the title.
-            if (IsKeyPressed(KEY_SPACE)) {
+            if (UpdateTitle(dt)) {
                 StartDemoLevel(); // 51d6: the attract loop, from a demo level
                 state = STATE_DEMO;
-            } else if (IsKeyPressed(KEY_F1)) {
-                StartInfo();
-                state = STATE_INFO;
             }
             break;
         case STATE_INFO:
@@ -183,7 +180,7 @@ int main(int argc, char* argv[])
 
         switch (state) {
         case STATE_TITLE:
-            DrawTitleScreen();
+            DrawTitleScreen(TitleTicks());
             break;
         case STATE_INFO:
             DrawInfoPage(InfoPage());

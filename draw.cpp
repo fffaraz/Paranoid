@@ -510,39 +510,58 @@ void DrawInfoPage(int page)
     }
 }
 
-void DrawTitleScreen(void)
+// 3da6: text in the small font, 7 rows of each 8x8 glyph, from pixel x.
+static void DrawSmallText(const char* text, int x, int y, Color colour)
 {
-    DrawRectangle(0, 0, 640, 280, EGA_PALETTE[7]);
-    DrawRectangle(16, 12, 608, 256, BLACK);
-    DrawRectangle(0, 0, 640, 1, WHITE);
-    DrawRectangle(0, 0, 1, 280, WHITE);
-    DrawRectangle(639, 0, 1, 280, EGA_PALETTE[8]);
-    DrawRectangle(0, 279, 640, 1, EGA_PALETTE[8]);
-    DrawRectangle(15, 11, 610, 1, EGA_PALETTE[8]);
-    DrawRectangle(15, 11, 1, 258, EGA_PALETTE[8]);
-    DrawRectangle(15, 268, 610, 1, WHITE);
-    DrawRectangle(624, 11, 1, 258, WHITE);
+    for (; *text; text++, x += FONT_SMALL_W) {
+        const char c = *text;
+        if (c >= 0x20 && c <= 0x5f)
+            DrawTextureRec(tex_font_small[c - 0x20], { 0, 0, (float)FONT_SMALL_W, 7 }, { (float)x, (float)y }, colour);
+    }
+}
 
-    DrawRectangle(182, 90, 276, 94, EGA_PALETTE[7]);
-    DrawRectangle(182, 90, 276, 1, WHITE);
-    DrawRectangle(182, 90, 1, 94, WHITE);
-    DrawRectangle(457, 90, 1, 94, EGA_PALETTE[8]);
-    DrawRectangle(182, 183, 276, 1, EGA_PALETTE[8]);
-    DrawRectangle(198, 102, 244, 70, EGA_PALETTE[7]);
-    DrawTextEGALarge("PARANOID", 224, 119, EGA_PALETTE[1]);
+// The title scroller's text, 0x3a5..0x522 in the COM file.
+static const char SCROLL_TEXT[] = "* - * - * - * - * - * - * - * - * - * -   The Bit Bucket Brothers proudly present Paranoid   ...    Chief executive in charge of programming - Ben North   ...   Chief executive in charge of graphics - Tom North   ...   Program code production - Ben North   ...   Graphics design - Tom North   ...   Additional programming - Ben North   ...   Additional graphics - Tom North         ";
 
-    DrawRectangle(220, 284, 200, 40, EGA_PALETTE[7]);
-    DrawRectangle(220, 284, 200, 1, WHITE);
-    DrawRectangle(220, 284, 1, 40, WHITE);
-    DrawRectangle(419, 284, 1, 40, EGA_PALETTE[8]);
-    DrawRectangle(220, 323, 200, 1, EGA_PALETTE[8]);
-    DrawRectangle(232, 294, 176, 20, BLACK);
-    DrawTextEGAMedium("BIT BUCKET BROTHERS", 248, 297, EGA_PALETTE[10]);
-
-    DrawTextEGAMedium("EVALUATION COPY", 0, 322, WHITE);
-    DrawTextEGAMedium("VERSION 1.8", 528, 290, WHITE);
-    DrawTextEGAMedium("PRESS SPACE TO PLAY", 472, 320, WHITE);
-    DrawTextEGA("F1 INFORMATION  F10 QUIT", 224, 335, EGA_PALETTE[7]);
+void DrawTitleScreen(int ticks)
+{
+    // 624e: the boxes; 6299: the PARANOID box, the large title (glyphs from
+    // 0x550 at x = 229, y = 126, colour 1) and the texts; 6300: three lines
+    // stored bit-inverted at 0x51de, the first two blank.
+    DrawRectangle(0, 0, 640, 350, EGA_PALETTE[0]);
+    DrawRaisedBox(0, 0, 639, 290);
+    DrawSunkenBox(16, 12, 623, 278);
+    DrawRaisedBox(208, 302, 431, 349);
+    DrawSunkenBox(224, 314, 415, 337);
+    DrawRaisedBox(182, 90, 457, 197);
+    DrawRaisedBox(198, 102, 441, 185);
+    static const uint8_t paranoid[8] = { 11, 4, 10, 4, 8, 6, 12, 13 };
+    for (int i = 0; i < 8; i++)
+        DrawTexture(tex_font_large[paranoid[i]], 229 + 24 * i, 126, EGA_PALETTE[1]);
+    DrawSmallText("PRESS SPACE", 552, 333, EGA_PALETTE[15]);
+    DrawSmallText("   TO START", 552, 342, EGA_PALETTE[15]);
+    DrawSmallText(" VERSION 1.8", 544, 306, EGA_PALETTE[15]);
+    DrawSmallText("EVALUATION COPY    ", 0, 342, EGA_PALETTE[15]);
+    if (ticks < 1)
+        return; // the balls and the scroller appear on the first tick
+    DrawBalls();
+    // 633a / 6377: 20 characters at (240, 318) in colour 10, shifted left by
+    // the scroller's pixel offset as it was before this tick moved it on.
+    const int text_len = int(sizeof(SCROLL_TEXT)) - 1;
+    int pos = orig.w(addr::SCROLL_POS) - addr::SCROLL_TEXT;
+    int shift = orig.b(addr::SCROLL_SHIFT) - 2;
+    if (shift < 0) {
+        shift += 8;
+        pos = (pos + text_len - 1) % text_len;
+    }
+    char line[22];
+    for (int i = 0; i < 21; i++)
+        line[i] = SCROLL_TEXT[(pos + i) % text_len];
+    line[21] = 0;
+    DrawTextEGAMedium(line, 240 - shift, 318, EGA_PALETTE[10]);
+    // Only 20 columns are written; the rest of the box stays black.
+    DrawRectangle(232, 318, 8, 14, EGA_PALETTE[0]);
+    DrawRectangle(400, 318, 8, 14, EGA_PALETTE[0]);
 }
 
 void LoadGameTextures(const BitMaps& bitmaps, const Fonts& fonts)

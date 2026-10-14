@@ -1153,7 +1153,7 @@ against the original (`tools/grab_original.sh`: Space, F1, then a key every
 3 s; frames matched by hash): all 67 grabs of the five pages are
 pixel-identical to the remake's frames, the animated pages included.
 
-### [ ] 23. Opening title screen: bouncing balls and credits scroller
+### [x] 23. Opening title screen: bouncing balls and credits scroller
 
 **Original (`6367`):**
 - `624e`/`6299` draw the boxes and the large `PARANOID` (glyphs at `0x550`,
@@ -1192,6 +1192,22 @@ pixel-identical to the remake's frames, the animated pages included.
 **Remake:** `DrawTitleScreen` (`draw.cpp` ~140) doesn't move, shows
 `"PRESS SPACE TO PLAY"` and `"F1 INFORMATION  F10 QUIT"` (neither is in the
 original title), and accepts F1.
+
+**Done:** `SimTitleStart`/`SimTitleTick` (`sim.cpp`: `64d9`, `648d`,
+`3158` = the same move as `31b4` with `30ba`'s walls and the box at
+`0x548`, and the scroller state at `0xcf0b`/`0xcf0d`), `StartTitle`/
+`UpdateTitle` (`game.cpp`: only Space leaves, to the attract loop with a
+demo level; other keys, F1 and F10 included, are ignored), and
+`DrawTitleScreen(ticks)` (`draw.cpp`). Corrections to the notes above, from
+the asm: the table order is (counter, dy, dx, y, x), so the 543 values are
+y; the texts are `"PRESS SPACE"` (no leading space), `"   TO START"` and
+`" VERSION 1.8"`, drawn by `3da6`, which draws only **7 rows** of each 8x8
+small-font glyph; of the three inverted lines at `0x51de` the first two are
+blank, so `EVALUATION COPY` is at (0, **342**); the scroller is written at
+`0x637e` = row 318, **col 30** (x = 240), 20 columns, drawn before it moves
+on each tick. Checked against the original (`tools/grab_original.sh`, 10 s
+with no keys, frames matched by hash): every grab of the title, from tick 13
+to tick 673, is pixel-identical to the remake's frame.
 
 ### [ ] 24. Screen transitions (hardware scroll)
 
@@ -1314,6 +1330,9 @@ Coordinates the remake has slightly wrong, taken from the drawing tables:
   (144, 256) (`draw.cpp` ~252).
 - **Title-screen "PARANOID"** (`6299`): x = 229, y = 126. The remake uses
   (224, 119) (`draw.cpp` ~159).
+- The small-font labels (SCORE, LEVEL, ...) go through `3da6`, which
+  draws 7 rows per glyph: use `DrawSmallText` (`draw.cpp`, item 23), not
+  `DrawTextEGA`.
 - **Done by item 21:** the playfield frame, the big "PARANOID" (147, 255)
   and the production boxes (`3f9a`) are exact now (`DrawFrame`,
   `DrawProductionBoxes` in `draw.cpp`). Left: the score panel below and the

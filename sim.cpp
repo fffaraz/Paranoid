@@ -1075,8 +1075,9 @@ void NextPhase(OrigState& s)
         s.b(PHASE) = 0;
 }
 
-// 3109: the high-score screen's balls stay inside x 16..615, y 12..332.
-void fcn_3109_screen_walls(OrigState& s, uint8_t i)
+// 3109 (high-score screen, max_y 332) and 30ba (title, max_y 272): the
+// screen balls stay inside x 16..615, y 12..max_y.
+void ScreenWalls(OrigState& s, uint8_t i, uint16_t max_y)
 {
     uint16_t b = BallAddr(i);
     if (s.w(b + BALL_X) < 0x10) {
@@ -1089,8 +1090,8 @@ void fcn_3109_screen_walls(OrigState& s, uint8_t i)
     if (s.w(b + BALL_Y) < 0x0c) {
         s.set_w(b + BALL_Y, 0x0c);
         s.set_w(b + BALL_DY, uint16_t(-s.w(b + BALL_DY)));
-    } else if (s.w(b + BALL_Y) > 0x14c) {
-        s.set_w(b + BALL_Y, 0x14c);
+    } else if (s.w(b + BALL_Y) > max_y) {
+        s.set_w(b + BALL_Y, max_y);
         s.set_w(b + BALL_DY, uint16_t(-s.w(b + BALL_DY)));
     }
 }
@@ -1163,8 +1164,9 @@ void fcn_2ed7_box(OrigState& s, uint8_t i, uint16_t x1, uint16_t y1, uint16_t x2
     }
 }
 
-// 31b4: move one of the high-score screen's balls, as 2d3e moves game balls.
-void fcn_31b4_move_screen_ball(OrigState& s, uint8_t i)
+// 31b4 (high-score screen) and 3158 (title): move a screen ball as 2d3e
+// moves game balls, then keep it inside the screen.
+void MoveScreenBall(OrigState& s, uint8_t i)
 {
     s.b(MOVE_BALL) = i;
     uint16_t b = BallAddr(i);
@@ -1174,9 +1176,21 @@ void fcn_31b4_move_screen_ball(OrigState& s, uint8_t i)
         y = uint16_t(y + (int16_t(s.w(b + BALL_DY)) < 0 ? -1 : 1));
     s.set_w(b + BALL_X, x);
     s.set_w(b + BALL_Y, y);
-    fcn_3109_screen_walls(s, i);
+}
+
+void fcn_31b4_move_hiscore_ball(OrigState& s, uint8_t i)
+{
+    MoveScreenBall(s, i);
+    ScreenWalls(s, i, 0x14c); // 3109
     fcn_2ed7_box(s, i, 48, 38, 591, 85); // 0x713, the title box
     fcn_2ed7_box(s, i, 152, 112, 487, 311); // 0x71b, the table box
+}
+
+void fcn_3158_move_title_ball(OrigState& s, uint8_t i)
+{
+    MoveScreenBall(s, i);
+    ScreenWalls(s, i, 0x110); // 30ba
+    fcn_2ed7_box(s, i, 182, 90, 457, 197); // 0x548, the PARANOID box
 }
 
 } // namespace
@@ -1396,8 +1410,44 @@ void SimHighScoreBallsTick(OrigState& s)
     NextPhase(s);
     for (uint8_t i = 0; i < 16; i++) {
         if (s.b(BallAddr(i) + BALL_FLAGS) & BALL_ACTIVE)
-            fcn_31b4_move_screen_ball(s, i);
+            fcn_31b4_move_hiscore_ball(s, i);
     }
+}
+
+void SimTitleStart(OrigState& s)
+{
+    // 64d9: 375b, then 64aa starts the 6 balls of table 0x559 (counter, dy,
+    // dx, y, x; three start below the screen and are clamped on their first
+    // move), and the scroller starts at the beginning of its text.
+    static const int16_t balls[6][5] = {
+        { 0, 2, 3, 36, 556 }, { 1, 2, 3, 36, 316 }, { 0, 2, 3, 36, 79 },
+        { 2, 2, 3, 543, 556 }, { 1, 2, 3, 543, 316 }, { 0, 2, 3, 543, 79 }
+    };
+    fcn_375b_clear_balls(s);
+    for (const auto& ball : balls)
+        fcn_3933_spawn_ball(s, uint16_t(ball[4]), uint16_t(ball[3]), uint16_t(ball[2]), uint16_t(ball[1]), uint16_t(ball[0]), BALL_ACTIVE);
+    s.set_w(SCROLL_POS, SCROLL_TEXT);
+    s.b(SCROLL_SHIFT) = 0;
+}
+
+void SimTitleTick(OrigState& s)
+{
+    // 648d: the phase, then 3216 moves every ball (3158).
+    NextPhase(s);
+    for (uint8_t i = 0; i < 16; i++) {
+        if (s.b(BallAddr(i) + BALL_FLAGS) & BALL_ACTIVE)
+            fcn_3158_move_title_ball(s, i);
+    }
+    // 633a draws the scroller, then moves it 2 px on.
+    uint16_t pos = s.w(SCROLL_POS);
+    uint8_t shift = uint8_t(s.b(SCROLL_SHIFT) + 2);
+    if (shift >= 8) {
+        if (++pos == SCROLL_TEXT_END)
+            pos = SCROLL_TEXT;
+        shift -= 8;
+    }
+    s.set_w(SCROLL_POS, pos);
+    s.b(SCROLL_SHIFT) = shift;
 }
 
 void SimInfoIconsStart(OrigState& s, bool second_page)
