@@ -176,11 +176,6 @@ int main(int argc, char* argv[])
             } else {
                 DrawPlay(CurrentView());
             }
-            // Remake addition: a banner while the game is paused.
-            if (orig.paused) {
-                DrawRectangle(0, 160, 640, 30, (Color) { 0, 0, 0, 200 });
-                DrawTextCenteredMedium("PAUSED", 165, EGA_PALETTE[14]);
-            }
             break;
         }
         }

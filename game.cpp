@@ -81,12 +81,7 @@ void PressKeys()
     auto pressed = [](int key) { return IsKeyPressed(key) || IsKeyPressedRepeat(key); };
     if (pressed(KEY_P))
         orig.b(addr::KEYS + key::PAUSE) = 1;
-    if (!pressed(KEY_SPACE))
-        return;
-    // Remake addition: Space also ends the pause.
-    if (orig.paused)
-        orig.b(addr::KEYS + key::PAUSE) = 1;
-    else
+    if (pressed(KEY_SPACE))
         orig.b(addr::KEYS + key::ACTION) = 1;
 }
 
@@ -95,7 +90,7 @@ void ReleaseKeys()
 {
     if (!IsKeyDown(KEY_SPACE))
         orig.b(addr::KEYS + key::ACTION) = 0;
-    if (!IsKeyDown(KEY_P) && !IsKeyDown(KEY_SPACE))
+    if (!IsKeyDown(KEY_P))
         orig.b(addr::KEYS + key::PAUSE) = 0;
 }
 
@@ -248,12 +243,6 @@ Message CurrentMessage(int& step)
 
 void UpdatePlay(float dt)
 {
-    // Remake addition: Escape during the pause leaves the game at once.
-    if (orig.paused && IsKeyPressed(KEY_ESCAPE)) {
-        orig.paused = false;
-        state = STATE_TITLE;
-        return;
-    }
     if (GetKeyPressed() != 0)
         key_pressed = true;
     PressKeys();

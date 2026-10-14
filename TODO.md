@@ -39,10 +39,12 @@ Decided by the user:
   2 × 200 straight into the score; off = the remake's 500 in order / 200 out
   of order, once.
 
+- **Pause matches the original** (item 18): no banner, only P resumes, Esc
+  does nothing while paused.
+- **Kept as remake additions:** the arrow keys (besides Shift), the `-l N`
+  start-level switch and the resizable window.
+
 **Still open — ask the user before choosing, and don't pick a default:**
-- Keep, remove or make optional the remake's additions that the original
-  doesn't have: arrow keys, the `-l N` level switch, the resizable window, the
-  "PAUSED" banner (item 18).
 - Defaults for the display: 4:3 aspect on or off (V7). The tick rate is
   70 Hz either way; that is what the reference traces use.
 
@@ -901,7 +903,7 @@ remake's in the frame before it, at opening steps 14, 30, 46 and 62 (of 75)
 and when finished. Checked in the remake: skip on level 30 leads to the
 ending, which still waits after 2495 ticks without a key.
 
-### [ ] 18. Pause behaviour
+### [x] 18. Pause behaviour
 
 **Original (`3cc8`):** P freezes the game until P is pressed again. Nothing
 else resumes it.
@@ -910,6 +912,19 @@ else resumes it.
 drawn (`main.cpp` ~114–118, `main.cpp` ~158–162). Find out whether the original
 draws anything (search callers of `3cc8`). If not, remove the bar and the
 extra keys.
+
+**Done:** `3cc8` is reached only from the key table at `0x113` (its 4th
+entry) and draws nothing. The user chose to match the original: the PAUSED
+banner, Space-to-resume and Esc-to-leave are removed. Pause is `sim.cpp`'s
+(`OrigState::paused`): P pauses, only P resumes; Space or Esc pressed
+meanwhile only set their key bytes, so they act after resuming only if still
+held, as with the original's keyboard handler. Checked in the play flow:
+300 paused ticks leave the original's memory unchanged, and P resumes.
+**Known difference, not done:** the original doesn't run its sound player
+(`521a`) while paused, and only `521a` turns the speaker off, so a sound
+that is playing when P is pressed keeps sounding at its current pitch until
+the pause ends. The remake's sounds are pre-rendered and just finish. Doing
+this needs a sustained-tone sound path.
 
 ### [ ] 19. High-score table: file, entry and name input
 
