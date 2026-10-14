@@ -254,8 +254,9 @@ level byte follows `2,5,6,9,10,7,4,3,1,8`.
 
 ### [ ] V3. Reference traces (demo done; play traces need a person)
 
-Record and commit small reference traces under `tests/reference/` (or
-compress them; each tick is about 2 KB):
+Record reference traces under `tests/reference/`, gzip-compressed (each tick
+is about 2 KB). They are git-ignored; document how to regenerate or obtain
+each one in `tests/reference/README.md`:
 
 1. **`demo.trace`**: start, press nothing, let the attract loop run the 10
    demo levels. No keys are pressed, so this is identical on every run, and it
@@ -269,7 +270,9 @@ compress them; each tick is about 2 KB):
 Write down how each trace was made (command, levels, what happened) in
 `tests/reference/README.md`.
 
-**Status:** `demo.trace.gz` is recorded (11264 ticks, 403 KB). It covers all
+**Status:** `demo.trace.gz` is recorded (11264 ticks, 403 KB). It is **not
+committed** (`.gitignore`); regenerate it with `tools/make_demo_trace.sh`
+(about 5 minutes, see `tests/reference/README.md`). It covers all
 10 demo levels plus level 02 again, and the two level-02 runs match, which
 confirms the original is deterministic. `tools/trace_format.py` reads `.gz`
 directly. The README there lists what a replay must reproduce: the frame phase
@@ -291,7 +294,11 @@ with `tools/run_original.sh --trace`.
 - `tools/trace_diff.py ref.trace ours.trace` reports the **first** differing
   tick, the fields that differ (by RAM-map name) and a few ticks of context.
   Return non-zero on a mismatch so it can run in CI.
-- Add a CTest test that replays `demo.trace` and compares. Expect it to fail
+- Add a CTest test that replays `demo.trace` and compares. The trace isn't in
+  git, so the test must **skip**, not fail, when
+  `tests/reference/demo.trace.gz` is missing. Print the command to
+  regenerate it. CI can run `tools/make_demo_trace.sh` only if DOSBox-X can
+  run headless there; otherwise leave the test local-only. Expect it to fail
   until Part A is done; mark it `WILL_FAIL` or skip it until then, but keep it
   in the build.
 

@@ -92,7 +92,10 @@ python3 -I tools/trace_dump.py tests/capture/TRACE.BIN --from 1000 --count 10
 
 - `PARTRACE.COM` is the original patched by `tools/make_trace_com.py` to write
   one state record per tick (format in `tools/TRACE_FORMAT.md`).
-- Reference traces and screenshots go in `tests/reference/` (TODO V3, V5).
+- Reference data goes in `tests/reference/` (TODO V3, V5). Trace files
+  (`*.trace.gz`) are git-ignored. If `tests/reference/demo.trace.gz` is
+  missing, regenerate it with `tools/make_demo_trace.sh` (about 5 minutes,
+  opens a DOSBox-X window).
 - The remake's matching `--trace` / `--replay` modes and `trace_diff.py` are
   TODO item V4.
 
