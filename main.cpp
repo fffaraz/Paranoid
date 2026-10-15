@@ -60,7 +60,7 @@ static int BadSwitch()
     printf("Bad command-line switch.  Available switches are:\n\n"
            "    /Q - run quietly, ie disable sound effects\n"
            "    /V - skip video mode auto-detect\n"
-           "    /K llrraa - use alternative control keys\n"
+           "    /K llrraa - use alternative control keys, 1e2039 to play with A and D\n"
            "    /L n - start at level n (this remake only)\n"
            "    --fix-bugs - fix the original's bugs (this remake only)\n"
            "    --square-pixels - square pixels, not the 4:3 screen (F11 switches)\n\n"
